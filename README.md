@@ -161,7 +161,7 @@ Install the OpenSim Python API (if you do not want to install via conda, refer [
   <!-- print(f'torch version: {torch.__version__}, cuda version: {torch.version.cuda}, cudnn version: {torch.backends.cudnn.version()}, onnxruntime version: {ort.__version__}') -->
 
 > **Note on storage use:**\
-     A full installation takes up to 10 GB of storage spate. However, GPU support is not mandatory and takes about 6 GB. A minimal installation with carefully chosen pose models and without GPU support **would take less than 3 GB**.\
+     A full installation takes up to 10 GB of storage space. However, GPU support is not mandatory and takes about 6 GB. A minimal installation with carefully chosen pose models and without GPU support **would take less than 3 GB**.\
     <img src="Content/Storage.png" width="760">
 
 
@@ -323,15 +323,18 @@ First of all, set `multi_person = True` in your `Config.toml`file, and remove al
 - `Pose2Sim.calibration()`:\
   Run it only when your cameras are moved or changed. If they are not, just copy a previous calibration.toml file into your new calibration folder.
 - `Pose2Sim.poseEstimation()`:
-  - **Use your GPU**: This makes pose estimation significantly faster, without any impact on accuracy. See [Installation](#installation) section for more information.
-  - Set `det_frequency = 100` in Config.toml. Run the bounding box detector and the pose estimator on the first frame; for all subsequent frames, only run pose estimation: 
-  *150 s -> 30 s on my laptop with the Demo videos*
-  - Use `mode = 'lightweight'`: Will use a lighter version of RTMPose, which is faster but less accurate\
-  *30 s -> 20 s*
-  - Set `display_detection = false`. Do not display results in real time\
-  *20 s -> 15 s*
+  - **Use your GPU**: This makes pose estimation significantly faster, without any impact on accuracy. See [Installation](#installation) section for more information.\
+  *1 min 23 s -> 38 s on my average laptop*
+  - Set `display_detection = false`. Do not display results in real time.\
+  *38 s -> 30 s*
+  - Set `parallel_workers_pose = 'auto'` or an integer (number of threads). 'auto': one thread per video (ie 4 on the Demo data). This requires `display_detection = false`. No impact on accuracy either.\
+  *30 s -> 19 s*
+  - Set `det_frequency = 100` in Config.toml. Run the bounding box detector and the pose estimator on the first frame; for all subsequent frames, only run pose estimation. No impact on accuracy but may miss detection or swap some person IDs if several persons are in the scene.\
+  *19 s -> 9 s*
+  - Use `mode = 'lightweight'`: Will use a lighter version of RTMPose, which is faster but less accurate.\
+  *9 s -> 6.5 s*
   - Set `save_video = 'none'`. Do not save images and videos\
-  *15 s -> 9 s*
+  *6.5 s -> 5 s*
   - Set `tracking_mode = 'sports2d'` or `tracking_mode = 'none'`. If several persons are in the scene, use the sports2d tracker or no tracker at all, but not 'deepsort' (sports2d tracking is almost instantaneous though).
 - `Pose2Sim.synchronization()`:\
   Do not run if your cameras are natively synchronized.
@@ -345,7 +348,8 @@ First of all, set `multi_person = True` in your `Config.toml`file, and remove al
   Very fast, too. Note that marker augmentation won't necessarily improve results so you can consider skipping it.
 - `Pose2Sim.kinematics()`:\
   Set `use_simple_model = true`. Use a simpler OpenSim model, without muscles and constraints. Note that the spine will be stiff and shoulders will be a simple ball joint, but this is accurate enough for most gait-related tasks\
-  *9 s -> 0.7 s*
+  *9 s -> 0.7 s*\
+  Set `parallel_workers_kinematics = 'auto'` or an integer (number of processes). Only works in multi-person mode.
 
 
 </br></br>
@@ -680,7 +684,8 @@ If your triangulation is not satisfying, try and release the constraints in the 
 
 ### Filtering 3D coordinates
 > _**Filter your 3D coordinates.**_\
-> Butterworth, Kalman, Butterworth on speed, Gaussian, LOESS, Median filters are available and can be tuned accordingly.
+> - Butterworth, Kalman, OneEuro, GCV spline, LOESS, Gaussian, Median, Butterworth on speed filters are available and can be tuned accordingly
+> - Instead of filtering triangulated trc coordinates, you can also filter angle .mot files after inverse kinematics by setting `filter_ik = true` in your [Config.toml](https://github.com/perfanalytics/pose2sim/blob/main/Pose2Sim/Demo_SinglePerson/Config.toml) file.
 
 Open an Anaconda prompt or a terminal in a `Session` or `Trial` folder.\
 Type `ipython`.
@@ -705,7 +710,7 @@ Output:\
 > _**Use the Stanford LSTM model to estimate the position of 47 virtual markers.**_\
 _**Note that inverse kinematic results are not necessarily better after marker augmentation.**_ Skip if results are not convincing.
 
-*N.B.:* Marker augmentation tends to give a more stable, but less precise output. In practice, it is mostly beneficial when using less than 4 cameras. 
+*N.B.:* Marker augmentation tends to give a more stable, but less precise output. In practice, it is mostly beneficial when using fewer than 4 cameras. 
 
 **Make sure that `participant_height` is correct in your [Config.toml](https://github.com/perfanalytics/pose2sim/blob/main/Pose2Sim/Demo_SinglePerson/Config.toml) file.** `participant_mass` is mostly optional for IK.\
 Only works with models estimating at least the following keypoints (e.g., not COCO):

@@ -114,7 +114,7 @@ def triangulate_comb(comb, coords, P_all, calib_params, config_dict):
     - Q_comb: array: 3D coordinates of the triangulated point
     ''' 
 
-    undistort_points = config_dict.get('triangulation').get('undistort_points')
+    undistort_points = config_dict.get('triangulation', {}).get('undistort_points', False)
     
     # Filter coords and projection_matrices containing nans
     coords_filt = [coords[i] for i in range(len(comb)) if not np.isnan(comb[i])]
@@ -174,10 +174,10 @@ def best_persons_and_cameras_combination(config_dict, json_files_framef, persons
     - comb_errors_below_thresh: list of arrays of ints
     '''
     
-    error_threshold_tracking = config_dict.get('personAssociation').get('single_person').get('reproj_error_threshold_association')
-    min_cameras_for_triangulation = config_dict.get('triangulation').get('min_cameras_for_triangulation')
-    undistort_points = config_dict.get('triangulation').get('undistort_points')
-    likelihood_threshold = config_dict.get('personAssociation').get('likelihood_threshold_association')
+    error_threshold_tracking = config_dict.get('personAssociation', {}).get('single_person', {}).get('reproj_error_threshold_association', 20)
+    min_cameras_for_triangulation = config_dict.get('triangulation', {}).get('min_cameras_for_triangulation', 2)
+    undistort_points = config_dict.get('triangulation', {}).get('undistort_points', False)
+    likelihood_threshold = config_dict.get('personAssociation', {}).get('likelihood_threshold_association', 0.3)
 
     n_cams = len(json_files_framef)
     error_min = np.inf
@@ -253,7 +253,7 @@ def best_persons_and_cameras_combination(config_dict, json_files_framef, persons
         return np.inf, [np.array([np.nan]*n_cams)], [np.array([np.nan, np.nan, np.nan])]
 
     nb_cams_off = np.sum(np.isnan(best_comb))
-    print(f"Final reprojection error = {best_error:.2f} with {nb_cams_off} cams off and comb {best_comb}")
+    # print(f"Final reprojection error = {best_error:.2f} with {nb_cams_off} cams off and comb {best_comb}")
     return best_error, best_comb, best_Q
     
 
@@ -596,17 +596,17 @@ def recap_tracking(config_dict, error=0, nb_cams_excluded=0):
     '''
     
     # Read config_dict
-    project_dir = config_dict.get('project').get('project_dir')
+    project_dir = config_dict.get('project', {}).get('project_dir', '.')
     # if batch
     session_dir = os.path.realpath(os.path.join(project_dir, '..'))
     # if single trial
-    session_dir = session_dir if 'Config.toml' in os.listdir(session_dir) else os.getcwd()
-    multi_person = config_dict.get('project').get('multi_person')
-    likelihood_threshold_association = config_dict.get('personAssociation').get('single_person').get('likelihood_threshold_association', 0.3)
-    tracked_keypoint = config_dict.get('personAssociation').get('single_person').get('tracked_keypoint')
-    error_threshold_tracking = config_dict.get('personAssociation').get('single_person').get('reproj_error_threshold_association')
-    reconstruction_error_threshold = config_dict.get('personAssociation').get('multi_person').get('reconstruction_error_threshold')
-    min_affinity = config_dict.get('personAssociation').get('multi_person').get('min_affinity')
+    session_dir = session_dir if 'Config.toml' in os.listdir(session_dir) else project_dir if 'Config.toml' in os.listdir(project_dir) else os.getcwd()
+    multi_person = config_dict.get('project', {}).get('multi_person', False)
+    likelihood_threshold_association = config_dict.get('personAssociation', {}).get('single_person', {}).get('likelihood_threshold_association', 0.3)
+    tracked_keypoint = config_dict.get('personAssociation', {}).get('single_person', {}).get('tracked_keypoint', 'Neck')
+    error_threshold_tracking = config_dict.get('personAssociation', {}).get('single_person', {}).get('reproj_error_threshold_association', 20)
+    reconstruction_error_threshold = config_dict.get('personAssociation', {}).get('multi_person', {}).get('reconstruction_error_threshold', 0.1)
+    min_affinity = config_dict.get('personAssociation', {}).get('multi_person', {}).get('min_affinity', 0.2)
     poseTracked_dir = os.path.join(project_dir, 'pose-associated')
     calib_dir = [os.path.join(session_dir, c) for c in os.listdir(session_dir) if os.path.isdir(os.path.join(session_dir, c)) and  'calib' in c.lower()][0]
     calib_files = glob.glob(os.path.join(calib_dir, '*.toml'))
@@ -660,24 +660,24 @@ def associate_all(config_dict):
     '''
     
     # Read config_dict
-    project_dir = config_dict.get('project').get('project_dir')
+    project_dir = config_dict.get('project', {}).get('project_dir', '.')
     # if batch
     session_dir = os.path.realpath(os.path.join(project_dir, '..'))
     # if single trial
-    session_dir = session_dir if 'Config.toml' in os.listdir(session_dir) else os.getcwd()
-    multi_person = config_dict.get('project').get('multi_person')
-    pose_model = config_dict.get('pose').get('pose_model')
-    tracked_keypoint = config_dict.get('personAssociation').get('single_person').get('tracked_keypoint')
-    min_cameras_for_triangulation = config_dict.get('triangulation').get('min_cameras_for_triangulation')
-    reconstruction_error_threshold = config_dict.get('personAssociation').get('multi_person').get('reconstruction_error_threshold')
-    min_affinity = config_dict.get('personAssociation').get('multi_person').get('min_affinity')
-    frame_range = config_dict.get('project').get('frame_range')
-    undistort_points = config_dict.get('triangulation').get('undistort_points')
+    session_dir = session_dir if 'Config.toml' in os.listdir(session_dir) else project_dir if 'Config.toml' in os.listdir(project_dir) else os.getcwd()
+    multi_person = config_dict.get('project', {}).get('multi_person', False)
+    pose_model = config_dict.get('pose', {}).get('pose_model', 'Body_with_feet')
+    tracked_keypoint = config_dict.get('personAssociation', {}).get('single_person', {}).get('tracked_keypoint', 'Neck')
+    min_cameras_for_triangulation = config_dict.get('triangulation', {}).get('min_cameras_for_triangulation', 2)
+    reconstruction_error_threshold = config_dict.get('personAssociation', {}).get('multi_person', {}).get('reconstruction_error_threshold', 0.1)
+    min_affinity = config_dict.get('personAssociation', {}).get('multi_person', {}).get('min_affinity', 0.2)
+    frame_range = config_dict.get('project', {}).get('frame_range', 'auto')
+    undistort_points = config_dict.get('triangulation', {}).get('undistort_points', False)
     
     try:
         calib_dir = [os.path.join(session_dir, c) for c in os.listdir(session_dir) if os.path.isdir(os.path.join(session_dir, c)) and  'calib' in c.lower()][0]
     except:
-        raise Exception(f'No .toml calibration direcctory found.')
+        raise Exception(f'No .toml calibration directory found.')
     try:
         calib_files = glob.glob(os.path.join(calib_dir, '*.toml'))
         calib_file = max(calib_files, key=os.path.getctime) # lastly created calibration file
