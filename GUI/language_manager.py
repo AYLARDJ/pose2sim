@@ -15,6 +15,11 @@ class LanguageManager:
                 'info': "Information",
                 'success': "Success",
                 'select': "Select",
+                'Select the process mode': "Select Process Mode",
+                'Single Trial': "Single Trial",
+                'Project Name': "Project Name",
+                'Enter a project name': "Enter a project name",
+                'enter the trials number': "Number of Trials",
                 
                 # Welcome screen
                 'welcome_title': "Welcome to Pose2Sim",
@@ -109,6 +114,11 @@ class LanguageManager:
                 'info': "Information",
                 'success': "Succès",
                 'select': "Sélectionner",
+                'Select the process mode': "Sélectionnez le mode de traitement",
+                'Single Trial': "Essai unique",
+                'Project Name': "Nom du projet",
+                'Enter a project name': "Entrez un nom de projet",
+                'enter the trials number': "Nombre d'essais",
                 
                 # Welcome screen
                 'welcome_title': "Bienvenue sur Pose2Sim",

@@ -137,7 +137,7 @@ def create_point_selection_canvas(parent, image_path, points_callback, max_point
     
     return canvas
 
-def activate_pose2sim(participant_path, method='cmd', skip_pose_estimation=False, skip_synchronization=False, analysis_mode='3d'):
+def activate_pose2sim(participant_path, method='cmd', skip_pose_estimation=False, skip_synchronization=False, skip_marker_augmentation=False, analysis_mode='3d'):
     """
     Create scripts to activate Pose2Sim or Sports2D with the specified method.
     
@@ -146,6 +146,7 @@ def activate_pose2sim(participant_path, method='cmd', skip_pose_estimation=False
         method: Method to use ('cmd', 'conda', or 'powershell')
         skip_pose_estimation: Whether to skip pose estimation
         skip_synchronization: Whether to skip synchronization
+        skip_marker_augmentation: Whether to skip marker augmentation
         analysis_mode: '2d' or '3d'
     
     Returns:
@@ -161,7 +162,7 @@ Pose2Sim.runAll(do_calibration=True,
                 do_personAssociation=True, 
                 do_triangulation=True, 
                 do_filtering=True, 
-                do_markerAugmentation=True, 
+                do_markerAugmentation={not skip_marker_augmentation}, 
                 do_kinematics=True)
 """
         script_path = os.path.join(participant_path, 'run_pose2sim.py')

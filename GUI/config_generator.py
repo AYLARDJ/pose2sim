@@ -66,15 +66,17 @@ class ConfigGenerator:
                     'det_frequency': 4,
                     'device': 'auto',
                     'backend': 'auto',
+                    'parallel_workers_pose': 'auto',
+                    'display_detection': True,
+                    'overwrite_pose': False,
+                    'save_video': 'to_video',
+                    'output_format': 'openpose',
+                    'average_likelihood_threshold_pose': 0.5,
                     'tracking_mode': 'sports2d',
                     'max_distance_px': 100,
                     'deepsort_params': "{'max_age':30, 'n_init':3, 'nms_max_overlap':0.8, 'max_cosine_distance':0.3, 'nn_budget':200, 'max_iou_distance':0.8}",
                     'handle_LR_swap': False,
                     'undistort_points': False,
-                    'display_detection': True,
-                    'overwrite_pose': False,
-                    'save_video': 'to_video',
-                    'output_format': 'openpose',
                     'CUSTOM': 
                     {
                         'name': 'Hip',
@@ -124,7 +126,7 @@ class ConfigGenerator:
                     'keypoints_to_consider': 'all',
                     'approx_time_maxspeed': 'auto',
                     'time_range_around_maxspeed': 2.0,
-                    'likelihood_threshold': 0.4,
+                    'likelihood_threshold_synchronization': 0.4,
                     'filter_cutoff': 6,
                     'filter_order': 4
                 },
@@ -146,6 +148,7 @@ class ConfigGenerator:
                     },
                     'calculate': 
                     {
+                        'save_debug_images': True,
                         'intrinsics': 
                         {
                             'overwrite_intrinsics': False,
@@ -159,19 +162,17 @@ class ConfigGenerator:
                         {
                             'calculate_extrinsics': True,
                             'extrinsics_method': 'scene',
+                            'extrinsics_extension': 'png',
+                            'show_reprojection_error': True,
                             'moving_cameras': False,
                             'board': 
                             {
-                                'show_reprojection_error': True,
-                                'extrinsics_extension': 'png',
                                 'board_position': 'vertical',
                                 'extrinsics_corners_nb': [4, 7],
                                 'extrinsics_square_size': 60
                             },
                             'scene': 
                             {   
-                                'show_reprojection_error': True,
-                                'extrinsics_extension': 'png',
                                 'object_coords_3d': [[-2.0, 0.3, 0.0],
                                 [-2.0, 0.0, 0.0],
                                 [-2.0, 0.0, 0.05],
@@ -219,12 +220,14 @@ class ConfigGenerator:
                 {
                     'reject_outliers': True,
                     'filter': True,
+                    'filter_ik': False,
                     'type': 'butterworth',
                     'display_figures': True,
                     'save_filt_plots': True,
                     'make_c3d': True,
                     'butterworth': {'cut_off_frequency': 6, 'order': 4},
                     'kalman': {'trust_ratio': 500, 'smooth': True},
+                    'one_euro': {'cut_off_frequency': 4.0, 'beta': 1.5, 'd_cut_off_frequency': 1.0},
                     'gcv_spline': {'cut_off_frequency': 'auto', 'smoothing_factor': 1.0},
                     'loess': {'nb_values_used': 5},
                     'gaussian': {'sigma_kernel': 1},
@@ -240,12 +243,13 @@ class ConfigGenerator:
                 {
                     'use_augmentation': True,
                     'use_simple_model': False,
+                    'parallel_workers_kinematics': 'auto',
                     'right_left_symmetry': True,
                     'default_height': 1.7,
                     'remove_individual_scaling_setup': True,
                     'remove_individual_ik_setup': True,
                     'fastest_frames_to_remove_percent': 0.1,
-                    'close_to_zero_speed_m': 0.2,
+                    'slowest_frames_to_remove_percent': 0.1,
                     'large_hip_knee_angles': 45,
                     'trimmed_extrema_percent': 0.5
                 },
@@ -396,29 +400,33 @@ class ConfigGenerator:
             # Load the template
             config = toml.load(self.config_2d_template_path)
             
-            # Debug print to check settings
-            print("=" * 60)
-            print("2D Settings being applied:")
-            print(settings)
-            print("=" * 60)
+            # Extract and preserve CUSTOM section raw text to avoid toml serialization issues
+            custom_raw = self._extract_custom_section(self.config_2d_template_path)
             
-            # CRITICAL FIX: Update sections recursively - this will overwrite template values
+            # Remove CUSTOM from dict (will be appended as raw text)
+            if 'pose' in config and 'CUSTOM' in config['pose']:
+                del config['pose']['CUSTOM']
+            
+            # Update sections recursively
             for section_name, section_data in settings.items():
+                if not isinstance(section_data, dict):
+                    config[section_name] = section_data
+                    continue
                 if section_name not in config:
                     config[section_name] = {}
-                
-                # Force update - don't preserve template defaults
                 self.update_nested_section(config[section_name], section_data, force_overwrite=True)
             
-            # Debug print final config
-            print("=" * 60)
-            print("Final 2D Config:")
-            print(config)
-            print("=" * 60)
+            # Remove CUSTOM from merged config too
+            if 'pose' in config and 'CUSTOM' in config.get('pose', {}):
+                del config['pose']['CUSTOM']
             
-            # Write the updated config with pretty formatting
+            # Write config
+            Path(config_path).parent.mkdir(parents=True, exist_ok=True)
             with open(config_path, 'w', encoding='utf-8') as f:
                 toml.dump(config, f)
+                # Append raw CUSTOM section
+                if custom_raw:
+                    f.write('\n' + custom_raw)
             
             print(f"2D Config file saved successfully to {config_path}")
             return True
@@ -431,32 +439,35 @@ class ConfigGenerator:
     def generate_3d_config(self, config_path, settings):
         """Generate configuration file for 3D analysis"""
         try:
-            # Parse the template
+            # Load the template
             config = toml.load(self.config_3d_template_path)
             
-            # Debug print to check settings
-            print("=" * 60)
-            print("3D Settings being applied:")
-            print(settings)
-            print("=" * 60)
+            # Extract and preserve CUSTOM section raw text
+            custom_raw = self._extract_custom_section(self.config_3d_template_path)
             
-            # CRITICAL force overwrite template values
+            # Remove CUSTOM from dict
+            if 'pose' in config and 'CUSTOM' in config['pose']:
+                del config['pose']['CUSTOM']
+            
+            # Update sections recursively
             for section_name, section_data in settings.items():
+                if not isinstance(section_data, dict):
+                    config[section_name] = section_data
+                    continue
                 if section_name not in config:
                     config[section_name] = {}
-                
-                # Force update - don't preserve template defaults
                 self.update_nested_section(config[section_name], section_data, force_overwrite=True)
             
-            # Debug print final config
-            print("=" * 60)
-            print("Final 3D Config:")
-            print(config)
-            print("=" * 60)
+            # Remove CUSTOM from merged config too
+            if 'pose' in config and 'CUSTOM' in config.get('pose', {}):
+                del config['pose']['CUSTOM']
             
-            # Write the updated config with pretty formatting
+            # Write config
+            Path(config_path).parent.mkdir(parents=True, exist_ok=True)
             with open(config_path, 'w', encoding='utf-8') as f:
                 toml.dump(config, f)
+                if custom_raw:
+                    f.write('\n' + custom_raw)
             
             print(f"3D Config file saved successfully to {config_path}")
             return True
@@ -465,6 +476,39 @@ class ConfigGenerator:
             import traceback
             traceback.print_exc()
             return False
+    
+    def _extract_custom_section(self, template_path):
+        """Extract the raw CUSTOM section text from a template file"""
+        try:
+            with open(template_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+            
+            # Find start of CUSTOM section
+            start_idx = None
+            for i, line in enumerate(lines):
+                stripped = line.strip()
+                if stripped.startswith('[[pose.CUSTOM]]') or stripped.startswith('[pose.CUSTOM]'):
+                    start_idx = i
+                    break
+            
+            if start_idx is None:
+                return ''
+            
+            # Collect lines until we hit a section header that is NOT part of pose.CUSTOM
+            result_lines = []
+            for i in range(start_idx, len(lines)):
+                stripped = lines[i].strip()
+                # If we hit a new top-level section that isn't pose.CUSTOM, stop
+                if i > start_idx and stripped.startswith('[') and not stripped.startswith('[[pose.CUSTOM'):
+                    # Check if it's a sub-section of pose.CUSTOM.children etc
+                    if 'pose.CUSTOM' not in stripped:
+                        break
+                result_lines.append(lines[i])
+            
+            return ''.join(result_lines)
+        except:
+            pass
+        return ''
     
     def update_nested_section(self, config_section, settings_section, force_overwrite=False):
         """

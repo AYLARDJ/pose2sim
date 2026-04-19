@@ -1,0 +1,2071 @@
+<!DOCTYPE html>
+<html class="light" lang="fr">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Pose2Sim</title>
+<link rel="icon" href="/assets/Pose2Sim_favicon.ico" type="image/x-icon"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+tailwind.config = {
+  darkMode: "class",
+  theme: {
+    extend: {
+      colors: {
+        "primary": "#0059bb",
+        "primary-container": "#0070ea",
+        "on-primary": "#ffffff",
+        "on-primary-container": "#fefcff",
+        "secondary": "#006c48",
+        "secondary-container": "#92f7c3",
+        "surface": "#f7f9fb",
+        "surface-container": "#eceef0",
+        "surface-container-low": "#f2f4f6",
+        "surface-container-high": "#e6e8ea",
+        "surface-container-highest": "#e0e3e5",
+        "on-surface": "#191c1e",
+        "on-surface-variant": "#414754",
+        "outline": "#717786",
+        "outline-variant": "#c1c6d7",
+        "background": "#f7f9fb",
+        "error": "#ba1a1a",
+        "success": "#006c48",
+      },
+      fontFamily: {
+        "headline": ["Manrope"],
+        "body": ["Inter"],
+      },
+    },
+  },
+}
+</script>
+<style>
+  .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+  body { font-family: 'Inter', sans-serif; }
+  h1, h2, h3, h4 { font-family: 'Manrope', sans-serif; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .sidebar-btn.active { background: white; color: #0059bb; box-shadow: 0 1px 3px rgba(0,0,0,0.08); font-weight: 700; }
+  .sidebar-btn:hover { transform: translateX(4px); }
+  .card { background: white; border-radius: 0.75rem; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.04); border: 1px solid #e8eaed; }
+  .card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+  .btn-primary { background: #0059bb; color: white; padding: 0.75rem 1.5rem; border-radius: 0.75rem; font-weight: 700; font-size: 0.875rem; transition: all 0.2s; }
+  .btn-primary:hover { background: #0070ea; transform: scale(1.02); }
+  .btn-primary:active { transform: scale(0.97); }
+  .btn-success { background: #006c48; color: white; padding: 0.75rem 1.5rem; border-radius: 0.75rem; font-weight: 700; font-size: 0.875rem; transition: all 0.2s; }
+  .btn-success:hover { background: #008055; }
+  .input-field { width: 100%; border: 1px solid #c1c6d7; border-radius: 0.5rem; padding: 0.625rem 0.875rem; font-size: 0.875rem; transition: all 0.2s; background: #f7f9fb; }
+  .input-field:focus { outline: none; border-color: #0059bb; box-shadow: 0 0 0 3px rgba(0,89,187,0.1); }
+  .radio-card { border: 2px solid #e0e3e5; border-radius: 0.75rem; padding: 1.25rem; cursor: pointer; transition: all 0.2s; }
+  .radio-card:hover { border-color: #0059bb; }
+  .radio-card.selected { border-color: #0059bb; background: rgba(0,89,187,0.04); }
+  canvas { image-rendering: auto; }
+  .progress-bar { height: 6px; background: #e0e3e5; border-radius: 999px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, #0059bb, #0070ea); border-radius: 999px; transition: width 0.5s ease; }
+  .fade-in { animation: fadeIn 0.3s ease-out; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .select-field { appearance: none; width: 100%; border: 1px solid #c1c6d7; border-radius: 0.5rem; padding: 0.625rem 2rem 0.625rem 0.875rem; font-size: 0.875rem; background: #f7f9fb url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23717786' d='M6 8L1 3h10z'/%3E%3C/svg%3E") no-repeat right 0.75rem center; }
+  .select-field:focus { outline: none; border-color: #0059bb; box-shadow: 0 0 0 3px rgba(0,89,187,0.1); }
+  .status-badge { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.5rem; border-radius: 999px; font-size: 0.625rem; font-weight: 700; text-transform: uppercase; }
+  .status-completed { background: #e8f5e9; color: #006c48; }
+  .status-pending { background: #fff3e0; color: #e65100; }
+</style>
+</head>
+<body class="bg-background text-on-surface min-h-screen">
+
+<!-- ==================== WELCOME SCREEN ==================== -->
+<div id="welcome-screen" class="min-h-screen flex flex-col items-center justify-center relative">
+  <div class="absolute top-6 right-8 flex gap-2">
+    <button onclick="setLanguage('en')" id="btn-en" class="px-4 py-2 rounded-lg text-sm font-bold bg-primary text-white transition-all">EN</button>
+    <button onclick="setLanguage('fr')" id="btn-fr" class="px-4 py-2 rounded-lg text-sm font-bold bg-surface-container-high text-on-surface-variant transition-all">FR</button>
+  </div>
+
+  <!-- Step 1: Analysis Mode -->
+  <div id="step-analysis" class="text-center fade-in">
+    <img src="/assets/pose2sim_logo.png" alt="Pose2Sim" class="w-40 h-40 mx-auto mb-6 object-contain" onerror="this.style.display='none'"/>
+    <h1 class="text-5xl font-black tracking-tight text-on-surface mb-2">Pose2Sim</h1>
+    <p class="text-on-surface-variant text-lg mb-12" data-t="welcome_subtitle">3D Pose Estimation Configuration Tool</p>
+
+    <div class="flex gap-6 justify-center">
+      <div class="radio-card w-72 text-center" onclick="selectAnalysis('2d')" id="card-2d">
+        <span class="material-symbols-outlined text-4xl text-primary mb-3">videocam</span>
+        <h3 class="text-xl font-bold mb-2" data-t="2d_analysis">2D Analysis</h3>
+        <p class="text-sm text-on-surface-variant" data-t="single_camera">Single camera</p>
+      </div>
+      <div class="radio-card w-72 text-center" onclick="selectAnalysis('3d')" id="card-3d">
+        <span class="material-symbols-outlined text-4xl text-primary mb-3">3d_rotation</span>
+        <h3 class="text-xl font-bold mb-2" data-t="3d_analysis">3D Analysis</h3>
+        <p class="text-sm text-on-surface-variant" data-t="multi_camera">Two cameras or more</p>
+      </div>
+    </div>
+    <p class="text-xs text-outline mt-8">Version 2.0</p>
+  </div>
+
+  <!-- Step 2: Process Mode (3D only) -->
+  <div id="step-process" class="text-center fade-in" style="display:none">
+    <h2 class="text-3xl font-bold mb-10" data-t="Select the process mode">Select Process Mode</h2>
+    <div class="flex gap-6 justify-center">
+      <div class="radio-card w-72 text-center" onclick="selectProcess('single')">
+        <span class="material-symbols-outlined text-4xl text-primary mb-3">play_circle</span>
+        <h3 class="text-xl font-bold mb-2" data-t="Single Trial">Single Trial</h3>
+        <p class="text-sm text-on-surface-variant">Process one recording session</p>
+      </div>
+      <div class="radio-card w-72 text-center" onclick="selectProcess('batch')">
+        <span class="material-symbols-outlined text-4xl text-primary mb-3">layers</span>
+        <h3 class="text-xl font-bold mb-2" data-t="batch_mode">Batch Mode</h3>
+        <p class="text-sm text-on-surface-variant">Process multiple trials at once</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 3: Project Name -->
+  <div id="step-project" class="text-center fade-in" style="display:none">
+    <h2 class="text-3xl font-bold mb-8" data-t="Project Name">Project Name</h2>
+    <div class="card w-[28rem] mx-auto text-left">
+      <label class="block text-xs font-bold text-outline uppercase mb-2" data-t="Enter a project name">Enter a project name</label>
+      <input type="text" id="project-name" value="my_project" class="input-field mb-4"/>
+      <div id="trials-input" style="display:none">
+        <label class="block text-xs font-bold text-outline uppercase mb-2" data-t="enter the trials number">Number of Trials</label>
+        <input type="number" id="num-trials" value="3" min="1" class="input-field mb-4"/>
+      </div>
+      <button class="btn-primary w-full mt-2" onclick="startProject()" data-t="next">Next</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MAIN APP (hidden until setup complete) ==================== -->
+<div id="main-app" style="display:none" class="fade-in">
+  <!-- Sidebar -->
+  <aside id="sidebar" class="h-screen w-64 fixed left-0 top-0 border-r border-slate-200/60 bg-[#f7f9fb] flex flex-col py-6 z-50">
+    <div class="px-6 mb-6">
+      <div class="flex items-center gap-3">
+        <img src="/assets/pose2sim_logo.png" alt="Logo" class="w-10 h-10 rounded-xl object-contain" onerror="this.outerHTML='<div class=\'w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white\'><span class=\'material-symbols-outlined\'>3d_rotation</span></div>'"/>
+        <div>
+          <h1 class="text-lg font-black text-primary tracking-tighter">Pose2Sim</h1>
+          <p id="sidebar-mode-label" class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">3D Analysis</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Language buttons -->
+    <div class="px-6 mb-4 flex gap-2">
+      <button onclick="setLanguage('en')" id="main-btn-en" class="flex-1 py-1.5 rounded-lg text-xs font-bold bg-primary text-white">EN</button>
+      <button onclick="setLanguage('fr')" id="main-btn-fr" class="flex-1 py-1.5 rounded-lg text-xs font-bold bg-surface-container-high text-on-surface-variant">FR</button>
+    </div>
+
+    <nav id="sidebar-nav" class="flex-1 space-y-1 px-4 overflow-y-auto">
+      <!-- Tabs injected by JS -->
+    </nav>
+
+    <!-- Progress -->
+    <div class="px-6 mt-auto pt-4 border-t border-slate-200/50">
+      <div class="flex justify-between text-xs mb-2">
+        <span class="font-bold text-on-surface-variant">Progress</span>
+        <span id="progress-pct" class="font-bold text-primary">0%</span>
+      </div>
+      <div class="progress-bar">
+        <div id="progress-fill" class="progress-fill" style="width:0%"></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="ml-64 min-h-screen flex flex-col">
+    <!-- Top Bar -->
+    <header class="w-full sticky top-0 z-40 bg-[#f7f9fb]/90 backdrop-blur-xl flex justify-between items-center px-8 py-4 border-b border-slate-200/50">
+      <h2 id="content-title" class="text-xl font-bold tracking-tight text-primary">Tutorial</h2>
+      <div id="tab-status-badge"></div>
+    </header>
+
+    <div id="content-area" class="flex-1 p-8">
+
+      <!-- ═══ TUTORIAL TAB ═══ -->
+      <div id="tab-tutorial" class="tab-content">
+        <div class="max-w-3xl mx-auto space-y-6">
+          <!-- Video Links -->
+          <div class="card">
+            <div class="flex items-center gap-3 mb-4">
+              <span class="material-symbols-outlined text-primary text-2xl">play_circle</span>
+              <h3 class="text-lg font-bold">Tutorial Videos</h3>
+            </div>
+            <p class="text-sm text-on-surface-variant mb-4">Due to size, tutorial videos are hosted on Google Drive</p>
+            <div class="flex gap-3">
+              <button class="btn-primary" onclick="window.open(analysisMode==='2d'?'https://drive.google.com/file/d/1Lglv-1tdO4FFKUl2LA7dKhYvPcsWbLmJ/view?usp=drive_link':'https://drive.google.com/file/d/1fNQDtc0f1jYOrgqkQcVHQ3XPfbdTIqTr/view?usp=drive_link')">
+                <span class="material-symbols-outlined text-sm align-middle mr-1">smart_display</span>Watch Tutorial Video
+              </button>
+              <button class="px-4 py-2 rounded-lg text-sm font-medium bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest transition-all" onclick="window.open(analysisMode==='2d'?'https://drive.google.com/file/d/1fNQDtc0f1jYOrgqkQcVHQ3XPfbdTIqTr/view?usp=drive_link':'https://drive.google.com/file/d/1Lglv-1tdO4FFKUl2LA7dKhYvPcsWbLmJ/view?usp=drive_link')">
+                <span class="material-symbols-outlined text-sm align-middle mr-1">smart_display</span>Watch Other Mode Tutorial
+              </button>
+            </div>
+          </div>
+
+          <!-- Beta Message -->
+          <div class="p-4 bg-white border border-blue-200 rounded-xl">
+            <p class="text-sm text-on-surface-variant">This GUI is a beta version. If you have suggestions or find errors, please send them to <strong>yacine.pose2sim@gmail.com</strong> and/or <strong>contact@david-pagnon.com</strong></p>
+          </div>
+
+          <!-- System Requirements -->
+          <div class="card">
+            <div class="flex items-center gap-3 mb-4">
+              <span class="material-symbols-outlined text-primary text-2xl">checklist</span>
+              <h3 class="text-lg font-bold">System Requirements Check</h3>
+            </div>
+            <div id="deps-grid" class="grid grid-cols-2 gap-3">
+              <div class="flex items-center gap-3 p-3 bg-surface-container-low rounded-lg" id="dep-anaconda">
+                <span class="dep-icon text-lg">⏳</span><span class="text-sm font-medium">Anaconda</span>
+              </div>
+              <div class="flex items-center gap-3 p-3 bg-surface-container-low rounded-lg" id="dep-pose2sim">
+                <span class="dep-icon text-lg">⏳</span><span class="text-sm font-medium">Pose2Sim / Sports2D</span>
+              </div>
+              <div class="flex items-center gap-3 p-3 bg-surface-container-low rounded-lg" id="dep-opensim">
+                <span class="dep-icon text-lg">⏳</span><span class="text-sm font-medium">OpenSim</span>
+              </div>
+              <div class="flex items-center gap-3 p-3 bg-surface-container-low rounded-lg" id="dep-pytorch">
+                <span class="dep-icon text-lg">⏳</span><span class="text-sm font-medium">PyTorch CUDA (optional)</span>
+              </div>
+              <div class="flex items-center gap-3 p-3 bg-surface-container-low rounded-lg" id="dep-onnxruntime">
+                <span class="dep-icon text-lg">⏳</span><span class="text-sm font-medium">ONNX Runtime (optional)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Steps Overview -->
+          <div class="card">
+            <div class="flex items-center gap-3 mb-4">
+              <span class="material-symbols-outlined text-primary text-2xl">school</span>
+              <h3 class="text-lg font-bold">Pipeline Steps</h3>
+            </div>
+            <div class="space-y-3">
+              <div class="flex items-start gap-3 p-3 bg-surface-container-low rounded-lg">
+                <span class="material-symbols-outlined text-primary mt-0.5">looks_one</span>
+                <div><h4 class="font-bold text-sm">Calibration</h4><p class="text-xs text-on-surface-variant">Set up your camera calibration parameters (checkerboard or convert from existing)</p></div>
+              </div>
+              <div class="flex items-start gap-3 p-3 bg-surface-container-low rounded-lg">
+                <span class="material-symbols-outlined text-primary mt-0.5">looks_two</span>
+                <div><h4 class="font-bold text-sm">Prepare Video</h4><p class="text-xs text-on-surface-variant">Extract and organize video frames for calibration</p></div>
+              </div>
+              <div class="flex items-start gap-3 p-3 bg-surface-container-low rounded-lg">
+                <span class="material-symbols-outlined text-primary mt-0.5">looks_3</span>
+                <div><h4 class="font-bold text-sm">Pose Estimation</h4><p class="text-xs text-on-surface-variant">Configure the pose detection model, import videos</p></div>
+              </div>
+              <div class="flex items-start gap-3 p-3 bg-surface-container-low rounded-lg">
+                <span class="material-symbols-outlined text-primary mt-0.5">looks_4</span>
+                <div><h4 class="font-bold text-sm">Synchronization</h4><p class="text-xs text-on-surface-variant">Synchronize multi-camera footage (skip if already synced)</p></div>
+              </div>
+              <div class="flex items-start gap-3 p-3 bg-surface-container-low rounded-lg">
+                <span class="material-symbols-outlined text-primary mt-0.5">looks_5</span>
+                <div><h4 class="font-bold text-sm">Run Analysis</h4><p class="text-xs text-on-surface-variant">Generate config and launch Pose2Sim or Sports2D</p></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ CALIBRATION TAB ═══ -->
+      <div id="tab-calibration" class="tab-content">
+        <div class="max-w-4xl mx-auto">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Left: Settings -->
+            <div class="space-y-4">
+              <div class="card">
+                <label class="block text-xs font-bold text-outline uppercase mb-3">Calibration Type</label>
+                <div class="flex gap-3">
+                  <label class="radio-card flex-1 text-center text-sm cursor-pointer selected" id="cal-type-calculate" onclick="setCalType('calculate')">
+                    <span class="material-symbols-outlined text-primary mb-1">calculate</span><br/>Calculate
+                  </label>
+                  <label class="radio-card flex-1 text-center text-sm cursor-pointer" id="cal-type-convert" onclick="setCalType('convert')">
+                    <span class="material-symbols-outlined text-primary mb-1">swap_horiz</span><br/>Convert
+                  </label>
+                </div>
+              </div>
+
+              <div class="card">
+                <label class="block text-xs font-bold text-outline uppercase mb-2">Number of Cameras</label>
+                <input type="number" id="cal-num-cameras" value="2" min="2" class="input-field" onchange="updateCalState()"/>
+              </div>
+
+              <!-- Calculate options -->
+              <div id="cal-calculate-opts" class="card space-y-3">
+                <label class="block text-xs font-bold text-outline uppercase mb-1">Checkerboard Settings</label>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="text-xs text-on-surface-variant">Width</label>
+                    <input type="number" id="cal-cb-width" value="7" class="input-field" onchange="updateCalState()"/>
+                  </div>
+                  <div>
+                    <label class="text-xs text-on-surface-variant">Height</label>
+                    <input type="number" id="cal-cb-height" value="5" class="input-field" onchange="updateCalState()"/>
+                  </div>
+                  <div>
+                    <label class="text-xs text-on-surface-variant">Square Size (mm)</label>
+                    <input type="number" id="cal-sq-size" value="30" class="input-field" onchange="updateCalState()"/>
+                  </div>
+                  <div>
+                    <label class="text-xs text-on-surface-variant">Video Extension</label>
+                    <input type="text" id="cal-vid-ext" value="mp4" class="input-field" onchange="updateCalState()"/>
+                  </div>
+                </div>
+                <button class="btn-primary w-full mt-2" onclick="previewCheckerboard()">
+                  <span class="material-symbols-outlined text-sm align-middle mr-1">preview</span>Preview Checkerboard
+                </button>
+              </div>
+
+              <!-- Convert options -->
+              <div id="cal-convert-opts" class="card space-y-3" style="display:none">
+                <label class="block text-xs font-bold text-outline uppercase mb-1">Convert From</label>
+                <select id="cal-convert-from" class="select-field" onchange="updateCalState()">
+                  <option>qualisys</option><option>optitrack</option><option>vicon</option>
+                  <option>opencap</option><option>easymocap</option><option>biocv</option>
+                  <option>anipose</option><option>freemocap</option>
+                </select>
+                <div id="cal-qualisys-opt">
+                  <label class="text-xs text-on-surface-variant">Binning Factor</label>
+                  <input type="number" id="cal-binning" value="1" class="input-field" onchange="updateCalState()"/>
+                </div>
+              </div>
+
+              <button class="btn-success w-full" onclick="confirmCalibration()">
+                <span class="material-symbols-outlined text-sm align-middle mr-1">check_circle</span><span data-t="proceed_calibration">Confirm & Proceed</span>
+              </button>
+            </div>
+
+            <!-- Right: Preview / Scene -->
+            <div class="space-y-4">
+              <div class="card">
+                <div id="cal-preview-area" class="aspect-video bg-surface-container-low rounded-xl flex items-center justify-center">
+                  <div class="text-center text-on-surface-variant">
+                    <span class="material-symbols-outlined text-4xl mb-2">image</span>
+                    <p class="text-sm">Checkerboard preview will appear here</p>
+                  </div>
+                </div>
+              </div>
+              <div class="card space-y-2">
+                <button class="btn-primary w-full" onclick="importCalFiles('intrinsics')">
+                  <span class="material-symbols-outlined text-sm align-middle mr-1">upload_file</span>Import Checkerboard Videos
+                </button>
+                <button class="btn-primary w-full" onclick="importCalFiles('extrinsics')">
+                  <span class="material-symbols-outlined text-sm align-middle mr-1">upload_file</span>Import Scene Videos
+                </button>
+                <button class="btn-primary w-full" onclick="savePDF()">
+                  <span class="material-symbols-outlined text-sm align-middle mr-1">picture_as_pdf</span>Save Checkerboard as PDF
+                </button>
+              </div>
+              <!-- Scene Point Selection -->
+              <div class="card" id="cal-scene-section">
+                <div class="flex items-center gap-2 mb-3">
+                  <span class="material-symbols-outlined text-primary">pin_drop</span>
+                  <h4 class="font-bold text-sm">Scene Calibration Points</h4>
+                </div>
+                <p class="text-xs text-on-surface-variant mb-3">Load a scene image, click 8 points, then enter 3D coordinates for each.</p>
+                <button class="btn-primary w-full mb-3" onclick="loadSceneImage()">
+                  <span class="material-symbols-outlined text-sm align-middle mr-1">add_photo_alternate</span>Load Scene Image
+                </button>
+                <div id="cal-scene-canvas-wrap" style="display:none" class="relative">
+                  <canvas id="cal-scene-canvas" class="w-full rounded-lg border border-outline-variant cursor-crosshair" onclick="onSceneCanvasClick(event)" oncontextmenu="event.preventDefault();removeLastScenePoint()"></canvas>
+                  <p class="text-xs text-center text-on-surface-variant mt-1">Click to select points. Right-click to remove last. <span id="cal-points-count">0</span>/8 points selected.</p>
+                  <button class="text-xs text-error mt-1" onclick="clearScenePoints()">Clear All Points</button>
+                </div>
+                <div id="cal-coords-list" class="space-y-2 mt-3"></div>
+                <button id="cal-save-coords-btn" class="btn-success w-full mt-3" style="display:none" onclick="saveSceneCoords()">
+                  <span class="material-symbols-outlined text-sm align-middle mr-1">save</span>Save Coordinates
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ PREPARE VIDEO TAB ═══ -->
+      <div id="tab-prepare_video" class="tab-content">
+        <div class="max-w-3xl mx-auto space-y-6">
+          <div class="card">
+            <label class="block text-xs font-bold text-outline uppercase mb-3">Editing Mode</label>
+            <div class="flex gap-3">
+              <button id="pv-simple-btn" class="radio-card flex-1 text-center selected" onclick="setPVMode('simple')">
+                <span class="material-symbols-outlined text-primary mb-1">tune</span><br/>
+                <span class="font-bold text-sm">Simple Mode</span><br/>
+                <span class="text-xs text-on-surface-variant">Basic extraction</span>
+              </button>
+              <button id="pv-advanced-btn" class="radio-card flex-1 text-center" onclick="setPVMode('advanced')">
+                <span class="material-symbols-outlined text-primary mb-1">movie_edit</span><br/>
+                <span class="font-bold text-sm">Advanced Editing</span><br/>
+                <span class="text-xs text-on-surface-variant">Full video tools</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Simple mode -->
+          <div id="pv-simple" class="card">
+            <label class="block text-xs font-bold text-outline uppercase mb-3">Do your videos contain only checkerboard images?</label>
+            <div class="flex gap-4 mb-4">
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="pv-checkerboard" value="yes" checked onchange="pvCheckerboardChange(this.value)"/> <span class="text-sm">Yes</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="pv-checkerboard" value="no" onchange="pvCheckerboardChange(this.value)"/> <span class="text-sm">No</span>
+              </label>
+            </div>
+            <div id="pv-time-input" style="display:none" class="mb-4">
+              <label class="text-xs text-on-surface-variant">Time interval (seconds) for image extraction</label>
+              <input type="number" id="pv-time-interval" value="1" step="0.5" min="0.1" class="input-field"/>
+            </div>
+            <div class="mb-4">
+              <label class="text-xs text-on-surface-variant">Image format</label>
+              <input type="text" id="pv-format" value="png" class="input-field"/>
+            </div>
+            <button class="btn-success w-full" onclick="confirmPV()">
+              <span class="material-symbols-outlined text-sm align-middle mr-1">check_circle</span>Confirm
+            </button>
+          </div>
+
+          <!-- Advanced mode -->
+          <div id="pv-advanced" class="card" style="display:none">
+            <p class="text-sm text-on-surface-variant mb-4">Use the external blur.py editor for advanced video processing.</p>
+            <div class="flex gap-3">
+              <button class="btn-success flex-1" onclick="launchEditor()">
+                <span class="material-symbols-outlined text-sm align-middle mr-1">launch</span>Launch Editor
+              </button>
+              <button class="btn-primary flex-1" onclick="confirmPV()">
+                <span class="material-symbols-outlined text-sm align-middle mr-1">check_circle</span>Done Editing
+              </button>
+            </div>
+          </div>
+
+          <div id="pv-status" class="p-3 bg-surface-container-low rounded-xl text-sm text-on-surface-variant text-center"></div>
+        </div>
+      </div>
+
+      <!-- ═══ POSE ESTIMATION TAB ═══ -->
+      <div id="tab-pose_model" class="tab-content">
+        <div class="max-w-3xl mx-auto space-y-6">
+          <!-- Video Input (2D only) -->
+          <div id="pose-video-section" class="card" style="display:none">
+            <div class="flex items-center gap-2 mb-4">
+              <span class="material-symbols-outlined text-primary">videocam</span>
+              <h3 class="font-bold">Video Input</h3>
+            </div>
+            <div class="flex gap-3 mb-4">
+              <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="pose-input-type" value="file" checked onchange="poseInputTypeChange(this.value)"/> <span class="text-sm">Single File</span></label>
+              <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="pose-input-type" value="webcam" onchange="poseInputTypeChange(this.value)"/> <span class="text-sm">Webcam</span></label>
+              <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="pose-input-type" value="multiple" onchange="poseInputTypeChange(this.value)"/> <span class="text-sm">Multiple</span></label>
+            </div>
+            <div id="pose-file-input">
+              <div class="flex gap-2">
+                <input type="text" id="pose-video-path" class="input-field flex-1" placeholder="Select video file..." readonly/>
+                <button class="btn-primary" onclick="browseVideoFile()">Browse</button>
+              </div>
+            </div>
+            <div id="pose-webcam-input" style="display:none" class="p-4 bg-surface-container-low rounded-lg text-sm text-on-surface-variant text-center">
+              Webcam will be used when launched.
+            </div>
+            <div id="pose-multi-input" style="display:none">
+              <div id="pose-multi-list" class="space-y-1 mb-2"></div>
+              <button class="btn-primary text-xs" onclick="addMultiVideo()">+ Add Video</button>
+            </div>
+          </div>
+
+          <!-- Participant Info -->
+          <div class="card">
+            <div class="flex items-center gap-2 mb-4">
+              <span class="material-symbols-outlined text-primary">person</span>
+              <h3 class="font-bold">Participant Information</h3>
+            </div>
+            <div class="flex gap-3 mb-4">
+              <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="pose-persons" value="single" checked onchange="posePersonsChange(this.value)"/> <span class="text-sm">Single Person</span></label>
+              <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="pose-persons" value="multiple" onchange="posePersonsChange(this.value)"/> <span class="text-sm">Multiple Persons</span></label>
+            </div>
+            <div id="pose-single-person" class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-xs text-on-surface-variant">Height (m)</label>
+                <input type="number" id="pose-height" value="1.72" step="0.01" class="input-field"/>
+              </div>
+              <div>
+                <label class="text-xs text-on-surface-variant">Mass (kg)</label>
+                <input type="number" id="pose-mass" value="70.0" step="0.1" class="input-field"/>
+              </div>
+            </div>
+            <div id="pose-multi-person" style="display:none">
+              <div class="flex gap-2 mb-3">
+                <input type="number" id="pose-num-people" value="2" min="1" class="input-field w-24"/>
+                <button class="btn-primary text-xs" onclick="generatePeopleInputs()">Set</button>
+              </div>
+              <div id="pose-people-list" class="space-y-2"></div>
+            </div>
+          </div>
+
+          <!-- Pose Model -->
+          <div class="card">
+            <div class="flex items-center gap-2 mb-4">
+              <span class="material-symbols-outlined text-primary">model_training</span>
+              <h3 class="font-bold">Pose Model Settings</h3>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-xs text-on-surface-variant">Model</label>
+                <select id="pose-model-select" class="select-field" onchange="poseModelChange(this.value)">
+                  <option>Body_with_feet</option><option>Whole_body_wrist</option><option>Whole_body</option>
+                  <option>Body</option><option>Hand</option><option>Face</option><option>Animal</option>
+                </select>
+              </div>
+              <div id="pose-mode-select-div">
+                <label class="text-xs text-on-surface-variant">Mode</label>
+                <select id="pose-mode-select" class="select-field">
+                  <option>lightweight</option><option selected>balanced</option><option>performance</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs text-on-surface-variant">Tracking Mode</label>
+                <select id="pose-tracking" class="select-field">
+                  <option>sports2d</option><option>deepsort</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs text-on-surface-variant">Video Extension</label>
+                <input type="text" id="pose-vid-ext" value="mp4" class="input-field"/>
+              </div>
+            </div>
+            <div id="pose-visible-side-div" class="mt-3" style="display:none">
+              <label class="text-xs text-on-surface-variant">Visible Side</label>
+              <select id="pose-visible-side" class="select-field">
+                <option>auto</option><option>right</option><option>left</option>
+                <option>front</option><option>back</option><option>none</option>
+              </select>
+            </div>
+          </div>
+
+          <button class="btn-success w-full" onclick="confirmPose()">
+            <span class="material-symbols-outlined text-sm align-middle mr-1">check_circle</span>Save & Continue
+          </button>
+        </div>
+      </div>
+
+      <!-- ═══ SYNCHRONIZATION TAB ═══ -->
+      <div id="tab-synchronization" class="tab-content">
+        <div class="max-w-3xl mx-auto space-y-6">
+          <div class="card">
+            <label class="block text-xs font-bold text-outline uppercase mb-3">Are your videos already synchronized?</label>
+            <div class="flex gap-4 mb-4">
+              <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="sync-skip" value="yes" onchange="syncSkipChange(this.value)"/> <span class="text-sm">Yes (Skip)</span></label>
+              <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="sync-skip" value="no" checked onchange="syncSkipChange(this.value)"/> <span class="text-sm">No (Need sync)</span></label>
+            </div>
+          </div>
+
+          <div id="sync-options" class="space-y-4">
+            <div class="card">
+              <label class="block text-xs font-bold text-outline uppercase mb-3">Use GUI for synchronization? <span class="text-success text-[10px]">✓ Recommended</span></label>
+              <div class="flex gap-4 mb-2">
+                <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="sync-gui" value="yes" checked onchange="syncGuiChange(this.value)"/> <span class="text-sm">Yes (Interactive)</span></label>
+                <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="sync-gui" value="no" onchange="syncGuiChange(this.value)"/> <span class="text-sm">No (Manual)</span></label>
+              </div>
+            </div>
+
+            <div id="sync-manual" class="card space-y-3" style="display:none">
+              <label class="block text-xs font-bold text-outline uppercase mb-1">Manual Sync Parameters</label>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="text-xs text-on-surface-variant">Keypoints</label>
+                  <select id="sync-keypoints" class="select-field">
+                    <option>all</option><option>CHip</option><option>RHip</option><option>RKnee</option><option>RAnkle</option>
+                    <option>LHip</option><option>LKnee</option><option>LAnkle</option><option>Neck</option><option>Head</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="text-xs text-on-surface-variant">Time Range (s)</label>
+                  <input type="number" id="sync-time-range" value="2.0" step="0.1" class="input-field"/>
+                </div>
+                <div>
+                  <label class="text-xs text-on-surface-variant">Likelihood Threshold</label>
+                  <input type="number" id="sync-likelihood" value="0.4" step="0.05" min="0" max="1" class="input-field"/>
+                </div>
+                <div>
+                  <label class="text-xs text-on-surface-variant">Filter Cutoff (Hz)</label>
+                  <input type="number" id="sync-cutoff" value="6" class="input-field"/>
+                </div>
+                <div>
+                  <label class="text-xs text-on-surface-variant">Filter Order</label>
+                  <input type="number" id="sync-filter-order" value="4" class="input-field"/>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn-success w-full" onclick="confirmSync()">
+            <span class="material-symbols-outlined text-sm align-middle mr-1">check_circle</span>Confirm Synchronization
+          </button>
+        </div>
+      </div>
+
+      <!-- ═══ ADVANCED SETTINGS TAB ═══ -->
+      <div id="tab-advanced" class="tab-content">
+        <div class="max-w-3xl mx-auto space-y-4">
+          <div class="card">
+            <div class="flex items-center gap-2 mb-4">
+              <span class="material-symbols-outlined text-primary">settings</span>
+              <h3 class="font-bold">Advanced Configuration</h3>
+            </div>
+            <p class="text-sm text-on-surface-variant mb-4">
+              These settings use defaults from the Pose2Sim/Sports2D template. Modify only if needed.
+            </p>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-xs text-on-surface-variant">Frame Rate (fps)</label>
+                <input type="text" id="adv-framerate" value="auto" class="input-field"/>
+              </div>
+              <div>
+                <label class="text-xs text-on-surface-variant">Frame Range</label>
+                <input type="text" id="adv-framerange" value="auto" class="input-field"/>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h4 class="font-bold text-sm mb-3">Pose Detection</h4>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-xs text-on-surface-variant">Parallel Workers (Pose)</label>
+                <input type="text" id="adv-parallel-pose" value="auto" class="input-field"/>
+              </div>
+              <div>
+                <label class="text-xs text-on-surface-variant">Avg Likelihood Threshold</label>
+                <input type="number" id="adv-avg-likelihood" value="0.5" step="0.05" min="0" max="1" class="input-field"/>
+              </div>
+              <div>
+                <label class="text-xs text-on-surface-variant">Detection Frequency</label>
+                <input type="number" id="adv-det-freq" value="4" class="input-field"/>
+              </div>
+              <div>
+                <label class="text-xs text-on-surface-variant">Device</label>
+                <select id="adv-device" class="select-field">
+                  <option selected>auto</option><option>CPU</option><option>CUDA</option><option>MPS</option><option>ROCM</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h4 class="font-bold text-sm mb-3">Triangulation</h4>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-xs text-on-surface-variant">Reprojection Error Threshold</label>
+                <input type="number" id="adv-reproj-err" value="15" class="input-field"/>
+              </div>
+              <div>
+                <label class="text-xs text-on-surface-variant">Min Cameras</label>
+                <input type="number" id="adv-min-cams" value="2" class="input-field"/>
+              </div>
+              <div>
+                <label class="text-xs text-on-surface-variant">Interpolation</label>
+                <select id="adv-interpolation" class="select-field">
+                  <option selected>linear</option><option>slinear</option><option>quadratic</option><option>cubic</option><option>none</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs text-on-surface-variant">Interp if Gap Smaller Than</label>
+                <input type="number" id="adv-interp-gap" value="20" class="input-field"/>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h4 class="font-bold text-sm mb-3">Filtering</h4>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-xs text-on-surface-variant">Filter Type</label>
+                <select id="adv-filter-type" class="select-field">
+                  <option selected>butterworth</option><option>kalman</option><option>one_euro</option>
+                  <option>gcv_spline</option><option>gaussian</option><option>loess</option>
+                  <option>median</option><option>butterworth_on_speed</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs text-on-surface-variant">Cutoff Frequency</label>
+                <input type="number" id="adv-filter-cutoff" value="6" class="input-field"/>
+              </div>
+              <div>
+                <label class="text-xs text-on-surface-variant flex items-center gap-1">
+                  Filter IK
+                  <span class="text-[10px] text-outline">(filter .mot files instead of .trc)</span>
+                </label>
+                <select id="adv-filter-ik" class="select-field">
+                  <option selected>false</option><option>true</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h4 class="font-bold text-sm mb-3">Marker Augmentation</h4>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-xs text-on-surface-variant">Feet on Floor</label>
+                <select id="adv-feet-on-floor" class="select-field">
+                  <option selected>false</option><option>true</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h4 class="font-bold text-sm mb-3">Kinematics</h4>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-xs text-on-surface-variant">Use Augmentation</label>
+                <select id="adv-use-augmentation" class="select-field">
+                  <option selected>true</option><option>false</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs text-on-surface-variant">Use Simple Model</label>
+                <select id="adv-use-simple-model" class="select-field">
+                  <option selected>false</option><option>true</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs text-on-surface-variant">Right-Left Symmetry</label>
+                <select id="adv-right-left-sym" class="select-field">
+                  <option selected>true</option><option>false</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs text-on-surface-variant">Parallel Workers (Kinematics)</label>
+                <input type="text" id="adv-parallel-kin" value="auto" class="input-field"/>
+              </div>
+              <div>
+                <label class="text-xs text-on-surface-variant">Default Height (m)</label>
+                <input type="number" id="adv-default-height" value="1.7" step="0.01" class="input-field"/>
+              </div>
+              <div>
+                <label class="text-xs text-on-surface-variant">Fastest Frames to Remove %</label>
+                <input type="number" id="adv-fastest-remove" value="0.1" step="0.05" class="input-field"/>
+              </div>
+              <div>
+                <label class="text-xs text-on-surface-variant">Slowest Frames to Remove %</label>
+                <input type="number" id="adv-slowest-remove" value="0.1" step="0.05" class="input-field"/>
+              </div>
+              <div>
+                <label class="text-xs text-on-surface-variant">Large Hip/Knee Angles (°)</label>
+                <input type="number" id="adv-hip-knee-angles" value="45" class="input-field"/>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn-success w-full" onclick="confirmAdvanced()">
+            <span class="material-symbols-outlined text-sm align-middle mr-1">check_circle</span>Save Advanced Settings
+          </button>
+        </div>
+      </div>
+
+      <!-- ═══ RUN ANALYSIS TAB ═══ -->
+      <div id="tab-activation" class="tab-content">
+        <div class="max-w-3xl mx-auto space-y-6">
+          <div class="card text-center">
+            <span class="material-symbols-outlined text-6xl text-primary mb-4">play_circle</span>
+            <h3 class="text-2xl font-bold mb-2" id="activation-title">Launch Pose2Sim</h3>
+            <p class="text-sm text-on-surface-variant mb-6">Start the analysis with Anaconda Prompt</p>
+            <button class="btn-success text-lg px-12 py-4" onclick="runAnalysis()">
+              <span class="material-symbols-outlined text-xl align-middle mr-2">rocket_launch</span>Run Analysis
+            </button>
+          </div>
+
+          <div class="card bg-surface-container-low border-none">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="material-symbols-outlined text-primary text-sm">lightbulb</span>
+              <span class="text-xs font-bold text-on-surface-variant" id="activation-notice">Make sure your Pose2Sim conda environment is properly set up.</span>
+            </div>
+          </div>
+
+          <div id="console-box" class="card" style="display:none">
+            <h4 class="font-bold text-sm mb-2">Console Output</h4>
+            <pre id="console-output" class="bg-slate-900 text-green-400 text-xs p-4 rounded-lg overflow-auto max-h-64 font-mono"></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ BATCH TAB ═══ -->
+      <div id="tab-batch" class="tab-content">
+        <div class="max-w-3xl mx-auto space-y-6">
+          <div class="card">
+            <div class="flex items-center gap-2 mb-4">
+              <span class="material-symbols-outlined text-primary">layers</span>
+              <h3 class="font-bold">Trial-Specific Configuration</h3>
+            </div>
+            <p class="text-sm text-on-surface-variant mb-4">Configure trial-specific parameters. Other settings will be inherited from the main configuration.</p>
+            <div id="batch-trials-list" class="space-y-3"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ VISUALIZATION TAB ═══ -->
+      <div id="tab-visualization" class="tab-content">
+        <div class="max-w-4xl mx-auto space-y-6">
+          <div class="card">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-primary text-2xl">bar_chart</span>
+                <h3 class="text-lg font-bold">Data Visualization</h3>
+              </div>
+              <div class="flex gap-2">
+                <button class="btn-primary text-xs" onclick="autoDetectFiles()">
+                  <span class="material-symbols-outlined text-sm align-middle mr-1">search</span>Auto-Detect
+                </button>
+                <button class="px-3 py-2 rounded-lg text-xs font-bold bg-surface-container-high text-on-surface-variant" onclick="loadTRCFile()">Load TRC</button>
+                <button class="px-3 py-2 rounded-lg text-xs font-bold bg-surface-container-high text-on-surface-variant" onclick="loadMOTFile()">Load MOT</button>
+                <button class="px-3 py-2 rounded-lg text-xs font-bold bg-surface-container-high text-on-surface-variant" onclick="loadVizVideo()">Load Video</button>
+              </div>
+            </div>
+            <div id="viz-status" class="p-3 bg-surface-container-low rounded-xl text-sm text-on-surface-variant text-center mb-4">
+              Load data files to begin visualization. Use Auto-Detect to find files in your project folder.
+            </div>
+          </div>
+
+          <!-- Visualization area -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="card">
+              <h4 class="font-bold text-sm mb-3">3D Markers / Video</h4>
+              <div id="viz-3d-area" class="aspect-video bg-surface-container-low rounded-xl flex items-center justify-center">
+                <div class="text-center text-on-surface-variant">
+                  <span class="material-symbols-outlined text-4xl mb-2">view_in_ar</span>
+                  <p class="text-sm">Load TRC or video file to visualize</p>
+                </div>
+              </div>
+              <div id="viz-video-controls" class="flex gap-2 mt-3 items-center" style="display:none">
+                <button class="btn-primary text-xs" onclick="toggleVizPlay()">▶️ Play</button>
+                <input type="range" id="viz-timeline" class="flex-1" min="0" max="100" value="0" oninput="seekVizFrame(this.value)"/>
+                <span id="viz-frame-num" class="text-xs text-on-surface-variant">0/0</span>
+              </div>
+            </div>
+            <div class="card">
+              <h4 class="font-bold text-sm mb-3">Angle / Marker Data</h4>
+              <div id="viz-chart-area" class="aspect-video bg-surface-container-low rounded-xl flex items-center justify-center">
+                <div class="text-center text-on-surface-variant">
+                  <span class="material-symbols-outlined text-4xl mb-2">show_chart</span>
+                  <p class="text-sm">Load MOT or TRC file to plot</p>
+                </div>
+              </div>
+              <div id="viz-column-selector" class="mt-3" style="display:none">
+                <label class="text-xs font-bold text-outline uppercase">Select columns to plot:</label>
+                <select id="viz-columns" class="select-field mt-1" multiple size="4" onchange="plotVizData()"></select>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ ABOUT TAB ═══ -->
+      <div id="tab-about" class="tab-content">
+        <div class="max-w-3xl mx-auto space-y-6">
+          <!-- Header -->
+          <div class="card flex items-center gap-6">
+            <img src="/assets/pose2sim_logo.png" alt="Pose2Sim" class="w-24 h-24 object-contain" onerror="this.style.display='none'"/>
+            <div>
+              <h3 class="text-2xl font-bold">Pose2Sim</h3>
+              <p class="text-sm text-on-surface-variant">Markerless Motion Capture Solution — Version 2.0</p>
+              <p class="text-xs text-outline mt-1">Licensed under AGPL-3.0</p>
+              <div class="flex gap-3 mt-3">
+                <a href="https://github.com/perfanalytics/pose2sim" target="_blank" class="btn-primary text-xs">GitHub</a>
+                <a href="https://pose2sim.readthedocs.io" target="_blank" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-surface-container-high text-on-surface-variant">Documentation</a>
+                <button class="px-3 py-1.5 rounded-lg text-xs font-bold bg-green-600 text-white" onclick="alert('Run: pip install pose2sim --upgrade')">Update Pose2Sim</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- What\'s New -->
+          <div class="card">
+            <h3 class="text-lg font-bold mb-4">What\'s New</h3>
+            <div id="about-releases" class="space-y-3">
+              <p class="text-sm text-on-surface-variant">Loading releases...</p>
+            </div>
+          </div>
+
+          <!-- How to Cite -->
+          <div class="card">
+            <h3 class="text-lg font-bold mb-4">How to Cite</h3>
+            <p class="text-sm text-on-surface-variant mb-4">If you use Pose2Sim in your work, please cite the following papers:</p>
+            <div class="space-y-3">
+              <div class="p-4 bg-surface-container-low rounded-xl">
+                <h4 class="text-sm font-bold text-primary mb-1">Pose2Sim: An open-source Python package for multiview markerless kinematics (2022)</h4>
+                <p class="text-xs text-on-surface-variant">Pagnon D, Domalain M, Reveret L — <em>Journal of Open Source Software</em></p>
+                <div class="flex gap-2 mt-2">
+                  <a href="https://doi.org/10.21105/joss.04362" target="_blank" class="text-xs text-primary font-bold">DOI: 10.21105/joss.04362</a>
+                  <button class="text-xs text-primary font-bold" onclick="navigator.clipboard.writeText(atob('QEFydGljbGV7UGFnbm9uXzIwMjJfSk9TUywgQVVUSE9SID0ge1BhZ25vbiwgRGF2aWQgYW5kIERvbWFsYWluLCBNYXRoaWV1IGFuZCBSZXZlcmV0LCBMaW9uZWx9LCBUSVRMRSA9IHtQb3NlMlNpbTogQW4gb3Blbi1zb3VyY2UgUHl0aG9uIHBhY2thZ2UgZm9yIG11bHRpdmlldyBtYXJrZXJsZXNzIGtpbmVtYXRpY3N9LCBKT1VSTkFMID0ge0pvdXJuYWwgb2YgT3BlbiBTb3VyY2UgU29mdHdhcmV9LCBZRUFSID0gezIwMjJ9LCBET0kgPSB7MTAuMjExMDUvam9zcy4wNDM2Mn19'));alert('BibTeX copied!')">Copy BibTeX</button>
+                </div>
+              </div>
+              <div class="p-4 bg-surface-container-low rounded-xl">
+                <h4 class="text-sm font-bold text-primary mb-1">Pose2Sim Part 2: Accuracy (2022)</h4>
+                <p class="text-xs text-on-surface-variant">Pagnon D, Domalain M, Reveret L — <em>Sensors</em></p>
+                <a href="https://doi.org/10.3390/s22072712" target="_blank" class="text-xs text-primary font-bold">DOI: 10.3390/s22072712</a>
+              </div>
+              <div class="p-4 bg-surface-container-low rounded-xl">
+                <h4 class="text-sm font-bold text-primary mb-1">Pose2Sim Part 1: Robustness (2021)</h4>
+                <p class="text-xs text-on-surface-variant">Pagnon D, Domalain M, Reveret L — <em>Sensors</em></p>
+                <a href="https://doi.org/10.3390/s21196530" target="_blank" class="text-xs text-primary font-bold">DOI: 10.3390/s21196530</a>
+              </div>
+              <div class="p-4 bg-surface-container-low rounded-xl">
+                <h4 class="text-sm font-bold text-primary mb-1">Sports2D: Compute 2D human pose and angles (2024)</h4>
+                <p class="text-xs text-on-surface-variant">Pagnon D, Kim H — <em>Journal of Open Source Software</em></p>
+                <a href="https://doi.org/10.21105/joss.06849" target="_blank" class="text-xs text-primary font-bold">DOI: 10.21105/joss.06849</a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Contributors -->
+          <div class="card">
+            <h3 class="text-lg font-bold mb-4">Acknowledgements</h3>
+            <div class="p-4 bg-surface-container-low rounded-xl text-sm text-on-surface-variant leading-relaxed">
+              <p>Thanks to all the contributors who have helped improve Pose2Sim:</p>
+              <p class="mt-2">Supervised my PhD: @lreveret (INRIA, Université Grenoble Alpes), @mdomalai (Université de Poitiers).</p>
+              <p>Provided the Demo data: @aaiaueil (Université Gustave Eiffel).</p>
+              <p>Tested the code and provided feedback: @simonozan, @daeyongyang, @ANaaim, @rlagnsals.</p>
+              <p>Submitted various accepted pull requests: @ANaaim, @rlagnsals, @peterlololsss.</p>
+              <p>Provided a code snippet for Optitrack calibration: @claraaudap (Université Bretagne Sud).</p>
+            </div>
+            <a href="https://github.com/perfanalytics/pose2sim/graphs/contributors" target="_blank" class="btn-primary text-xs mt-3 inline-block">View All Contributors on GitHub</a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- ==================== JAVASCRIPT ==================== -->
+<script>
+// ── State ──────────────────────────────────────────────
+let appState = {
+  language: 'en',
+  analysisMode: null,
+  processMode: 'single',
+  tabs: [],
+  currentTab: null,
+};
+
+// ── API helpers ────────────────────────────────────────
+async function api(url, data) {
+  const opts = data ? { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) } : {};
+  const r = await fetch(url, opts);
+  return r.json();
+}
+
+// ── Language ───────────────────────────────────────────
+async function setLanguage(lang) {
+  appState.language = lang;
+  await api('/api/language', {language: lang});
+  const res = await api('/api/language');
+  const t = res.translations;
+  
+  // Update buttons
+  document.querySelectorAll('[id^="btn-en"],[id^="main-btn-en"]').forEach(b => {
+    b.className = lang==='en' ? b.className.replace('bg-surface-container-high text-on-surface-variant','bg-primary text-white') : b.className.replace('bg-primary text-white','bg-surface-container-high text-on-surface-variant');
+    if(lang==='en') { b.classList.add('bg-primary','text-white'); b.classList.remove('bg-surface-container-high','text-on-surface-variant'); }
+    else { b.classList.remove('bg-primary','text-white'); b.classList.add('bg-surface-container-high','text-on-surface-variant'); }
+  });
+  document.querySelectorAll('[id^="btn-fr"],[id^="main-btn-fr"]').forEach(b => {
+    if(lang==='fr') { b.classList.add('bg-primary','text-white'); b.classList.remove('bg-surface-container-high','text-on-surface-variant'); }
+    else { b.classList.remove('bg-primary','text-white'); b.classList.add('bg-surface-container-high','text-on-surface-variant'); }
+  });
+  
+  // Update translatable elements
+  document.querySelectorAll('[data-t]').forEach(el => {
+    const key = el.getAttribute('data-t');
+    if (t[key]) el.textContent = t[key];
+  });
+  
+  // Update sidebar tab labels
+  const titles = tabTitles[lang] || tabTitles['en'];
+  document.querySelectorAll('.sidebar-tab-label').forEach(el => {
+    const tabId = el.getAttribute('data-tab-id');
+    if (titles[tabId]) el.textContent = titles[tabId];
+  });
+  
+  // Update content title
+  if (appState.currentTab && titles[appState.currentTab]) {
+    document.getElementById('content-title').textContent = titles[appState.currentTab];
+  }
+}
+
+// ── Welcome Flow ──────────────────────────────────────
+function selectAnalysis(mode) {
+  appState.analysisMode = mode;
+  document.querySelectorAll('#step-analysis .radio-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('card-'+mode).classList.add('selected');
+  
+  setTimeout(() => {
+    document.getElementById('step-analysis').style.display = 'none';
+    if (mode === '3d') {
+      document.getElementById('step-process').style.display = 'block';
+    } else {
+      appState.processMode = 'single';
+      document.getElementById('step-project').style.display = 'block';
+    }
+  }, 200);
+}
+
+function selectProcess(mode) {
+  appState.processMode = mode;
+  document.getElementById('step-process').style.display = 'none';
+  document.getElementById('step-project').style.display = 'block';
+  if (mode === 'batch') document.getElementById('trials-input').style.display = 'block';
+}
+
+async function startProject() {
+  const name = document.getElementById('project-name').value || 'my_project';
+  const numTrials = parseInt(document.getElementById('num-trials').value) || 3;
+  
+  const res = await api('/api/setup/start', {
+    analysis_mode: appState.analysisMode,
+    process_mode: appState.processMode,
+    participant_name: name,
+    num_trials: numTrials
+  });
+  
+  appState.tabs = res.tabs;
+  
+  // Build sidebar
+  buildSidebar(res.tabs);
+  
+  // Configure UI based on mode
+  document.getElementById('sidebar-mode-label').textContent = appState.analysisMode === '2d' ? '2D Analysis' : '3D Analysis';
+  
+  if (appState.analysisMode === '2d') {
+    document.getElementById('pose-video-section').style.display = 'block';
+    document.getElementById('pose-visible-side-div').style.display = 'block';
+    document.getElementById('activation-title').textContent = 'Launch Sports2D';
+    document.getElementById('activation-notice').textContent = 'Make sure your Sports2D conda environment is set up.';
+  }
+  
+  // Switch from welcome to main app
+  document.getElementById('welcome-screen').style.display = 'none';
+  document.getElementById('main-app').style.display = 'block';
+  
+  analysisMode = appState.analysisMode;
+  
+  // Show first tab
+  showTab(res.tabs[0].id);
+  
+  // Background tasks
+  checkDependencies();
+  loadAboutReleases();
+  if (appState.processMode === 'batch') buildBatchTrials();
+}
+
+// ── Sidebar ───────────────────────────────────────────
+function buildSidebar(tabs) {
+  const nav = document.getElementById('sidebar-nav');
+  nav.innerHTML = '';
+  tabs.forEach(tab => {
+    const isActivation = tab.id === 'activation';
+    const btn = document.createElement('button');
+    btn.className = 'sidebar-btn flex items-center gap-3 w-full px-4 py-3 text-slate-600 rounded-lg transition-all duration-200 text-left';
+    if (isActivation) btn.classList.add('font-bold');
+    btn.innerHTML = `<span class="material-symbols-outlined">${tab.icon}</span><span class="font-manrope text-sm font-medium sidebar-tab-label" data-tab-id="${tab.id}">${tab.title}</span><span id="status-${tab.id}" class="ml-auto"></span>`;
+    btn.onclick = () => showTab(tab.id);
+    btn.id = 'nav-' + tab.id;
+    nav.appendChild(btn);
+  });
+}
+
+// Tab title translations
+const tabTitles = {
+  en: { tutorial:'Tutorial', calibration:'Calibration', prepare_video:'Prepare Video', pose_model:'Pose Estimation', synchronization:'Synchronization', advanced:'Advanced Settings', activation:'Run Analysis', batch:'Batch Config', visualization:'Visualization', about:'About' },
+  fr: { tutorial:'Tutoriel', calibration:'Calibration', prepare_video:'Préparer Vidéo', pose_model:'Estimation de Pose', synchronization:'Synchronisation', advanced:'Configuration Avancée', activation:"Lancer l'Analyse", batch:'Config Batch', visualization:'Visualisation', about:'À Propos' }
+};
+
+function showTab(tabId) {
+  appState.currentTab = tabId;
+  
+  // Hide all tabs
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.remove('active'));
+  
+  // Show selected
+  const tabEl = document.getElementById('tab-' + tabId);
+  if (tabEl) tabEl.classList.add('active');
+  
+  const navBtn = document.getElementById('nav-' + tabId);
+  if (navBtn) navBtn.classList.add('active');
+  
+  // Update header
+  const tab = appState.tabs.find(t => t.id === tabId);
+  if (tab) {
+    const titles = tabTitles[appState.language] || tabTitles['en'];
+    document.getElementById('content-title').textContent = titles[tabId] || tab.title;
+  }
+}
+
+function updateProgress(pct) {
+  document.getElementById('progress-pct').textContent = pct + '%';
+  document.getElementById('progress-fill').style.width = pct + '%';
+}
+
+function markTabComplete(tabId) {
+  const el = document.getElementById('status-' + tabId);
+  if (el) el.innerHTML = '<span class="status-badge status-completed">✓</span>';
+  api('/api/tab/' + tabId + '/confirm', {}).then(r => updateProgress(r.progress));
+}
+
+function goToNextTab() {
+  const idx = appState.tabs.findIndex(t => t.id === appState.currentTab);
+  if (idx >= 0 && idx < appState.tabs.length - 1) {
+    showTab(appState.tabs[idx + 1].id);
+  }
+}
+
+// ── Calibration ───────────────────────────────────────
+function setCalType(type) {
+  document.getElementById('cal-type-calculate').classList.toggle('selected', type==='calculate');
+  document.getElementById('cal-type-convert').classList.toggle('selected', type==='convert');
+  document.getElementById('cal-calculate-opts').style.display = type==='calculate' ? 'block' : 'none';
+  document.getElementById('cal-convert-opts').style.display = type==='convert' ? 'block' : 'none';
+  updateCalState();
+}
+
+function updateCalState() {
+  api('/api/tab/calibration/settings', {
+    calibration_type: document.getElementById('cal-type-calculate').classList.contains('selected') ? 'calculate' : 'convert',
+    num_cameras: document.getElementById('cal-num-cameras').value,
+    checkerboard_width: document.getElementById('cal-cb-width').value,
+    checkerboard_height: document.getElementById('cal-cb-height').value,
+    square_size: document.getElementById('cal-sq-size').value,
+    video_extension: document.getElementById('cal-vid-ext').value,
+    convert_from: document.getElementById('cal-convert-from').value,
+    binning_factor: document.getElementById('cal-binning').value
+  });
+}
+
+async function previewCheckerboard() {
+  const r = await api('/api/calibration/checkerboard', {
+    width: document.getElementById('cal-cb-width').value,
+    height: document.getElementById('cal-cb-height').value,
+    square_size: document.getElementById('cal-sq-size').value
+  });
+  document.getElementById('cal-preview-area').innerHTML = `<img src="${r.image_url}?t=${Date.now()}" class="max-h-full rounded-lg"/>`;
+}
+
+async function importCalFiles(type) {
+  const n = parseInt(document.getElementById('cal-num-cameras').value);
+  await api('/api/calibration/create_folders', {});
+  for (let i = 1; i <= n; i++) {
+    await api('/api/calibration/import_files', {type, camera: i});
+  }
+  alert(`${type} files imported for ${n} cameras`);
+}
+
+async function savePDF() {
+  await api('/api/calibration/save_checkerboard_pdf', {
+    width: document.getElementById('cal-cb-width').value,
+    height: document.getElementById('cal-cb-height').value,
+    square_size: document.getElementById('cal-sq-size').value
+  });
+}
+
+async function confirmCalibration() {
+  updateCalState();
+  
+  const isConvert = document.getElementById('cal-type-convert').classList.contains('selected');
+  
+  if (isConvert) {
+    // CONVERT flow: ask user to select calibration file
+    const convertFrom = document.getElementById('cal-convert-from').value;
+    const r = await api('/api/calibration/import_convert_file', {});
+    
+    if (r.path && r.filename) {
+      alert(`Calibration file "${r.filename}" imported successfully for ${convertFrom} conversion.`);
+      markTabComplete('calibration');
+      goToNextTab();
+    } else {
+      alert('No calibration file selected. Please select a file to proceed.');
+    }
+  } else {
+    // CALCULATE flow: create folders, then ask for checkerboard & scene videos per camera
+    const numCams = parseInt(document.getElementById('cal-num-cameras').value) || 2;
+    await api('/api/calibration/create_folders', {});
+    
+    // Step 1: Import checkerboard videos for each camera
+    alert(`Please select checkerboard videos/images for ${numCams} camera(s).`);
+    for (let i = 1; i <= numCams; i++) {
+      const r = await api('/api/calibration/import_files', {type:'intrinsics', camera: i});
+      if (!r.path) {
+        alert(`No file selected for camera ${i} intrinsics. Calibration incomplete.`);
+        return;
+      }
+    }
+    
+    // Step 2: Import scene videos for each camera
+    alert(`Now select scene videos/images for ${numCams} camera(s).`);
+    for (let i = 1; i <= numCams; i++) {
+      const r = await api('/api/calibration/import_files', {type:'extrinsics', camera: i});
+      if (!r.path) {
+        alert(`No file selected for camera ${i} extrinsics. Calibration incomplete.`);
+        return;
+      }
+    }
+    
+    // Step 3: Scene point selection (user can do this in the right panel)
+    alert('All videos imported. Now use the "Scene Calibration Points" panel on the right to load a scene image, click 8 points, and enter their 3D coordinates.');
+    
+    markTabComplete('calibration');
+  }
+}
+
+// ── Prepare Video ─────────────────────────────────────
+function setPVMode(mode) {
+  document.getElementById('pv-simple-btn').classList.toggle('selected', mode==='simple');
+  document.getElementById('pv-advanced-btn').classList.toggle('selected', mode==='advanced');
+  document.getElementById('pv-simple').style.display = mode==='simple' ? 'block' : 'none';
+  document.getElementById('pv-advanced').style.display = mode==='advanced' ? 'block' : 'none';
+}
+
+function pvCheckerboardChange(val) {
+  document.getElementById('pv-time-input').style.display = val==='no' ? 'block' : 'none';
+}
+
+async function launchEditor() {
+  const r = await api('/api/prepare_video/launch_editor', {});
+  if (r.status === 'ok') {
+    document.getElementById('pv-status').textContent = 'External editor launched. Click "Done Editing" when finished.';
+    document.getElementById('pv-status').style.color = '#e65100';
+  } else {
+    document.getElementById('pv-status').textContent = 'Error: blur.py not found in the application directory';
+    document.getElementById('pv-status').style.color = '#ba1a1a';
+  }
+}
+
+async function confirmPV() {
+  const isSimple = document.getElementById('pv-simple-btn').classList.contains('selected');
+  const checkerboardOnly = document.querySelector('input[name="pv-checkerboard"]:checked')?.value || 'yes';
+  
+  await api('/api/tab/prepare_video/settings', {
+    editing_mode: isSimple ? 'simple' : 'advanced',
+    only_checkerboard: checkerboardOnly,
+    time_interval: document.getElementById('pv-time-interval').value,
+    extrinsic_format: document.getElementById('pv-format').value
+  });
+  
+  markTabComplete('prepare_video');
+  
+  if (isSimple && checkerboardOnly === 'yes') {
+    document.getElementById('pv-status').textContent = 'Prepare video step completed. Checkerboard videos will be used directly.';
+    document.getElementById('pv-status').style.color = '#006c48';
+    alert('Complete: Prepare video step completed. You can proceed to the next tab.');
+  } else if (isSimple && checkerboardOnly === 'no') {
+    document.getElementById('pv-status').textContent = 'Video preparation completed.';
+    document.getElementById('pv-status').style.color = '#006c48';
+    alert('Processing Complete: All camera images have been processed successfully.');
+  } else {
+    document.getElementById('pv-status').textContent = 'Advanced editing completed successfully.';
+    document.getElementById('pv-status').style.color = '#006c48';
+    alert('Complete: Advanced video editing completed. You can proceed to the next tab.');
+  }
+  
+  goToNextTab();
+}
+
+// ── Pose Estimation ───────────────────────────────────
+function poseInputTypeChange(type) {
+  document.getElementById('pose-file-input').style.display = type==='file' ? 'block' : 'none';
+  document.getElementById('pose-webcam-input').style.display = type==='webcam' ? 'block' : 'none';
+  document.getElementById('pose-multi-input').style.display = type==='multiple' ? 'block' : 'none';
+}
+
+async function browseVideoFile() {
+  const r = await api('/api/pose/import_video', {});
+  if (r.path) {
+    document.getElementById('pose-video-path').value = r.path;
+    // Show video preview
+    const previewDiv = document.getElementById('pose-file-input');
+    const existing = previewDiv.querySelector('.video-preview');
+    if (existing) existing.remove();
+    
+    const encodedPath = encodeURIComponent(r.full_path);
+    const videoDiv = document.createElement('div');
+    videoDiv.className = 'video-preview mt-3';
+    videoDiv.innerHTML = `<video controls class="w-full rounded-lg" style="max-height:300px">
+      <source src="/video/${encodedPath}" type="video/mp4">
+    </video>`;
+    previewDiv.appendChild(videoDiv);
+  }
+}
+
+function posePersonsChange(val) {
+  document.getElementById('pose-single-person').style.display = val==='single' ? 'grid' : 'none';
+  document.getElementById('pose-multi-person').style.display = val==='multiple' ? 'block' : 'none';
+}
+
+function poseModelChange(val) {
+  const show = ['Body_with_feet','Whole_body_wrist','Whole_body','Body'].includes(val);
+  document.getElementById('pose-mode-select-div').style.display = show ? 'block' : 'none';
+}
+
+function generatePeopleInputs() {
+  const n = parseInt(document.getElementById('pose-num-people').value);
+  const list = document.getElementById('pose-people-list');
+  list.innerHTML = '';
+  for (let i = 0; i < n; i++) {
+    list.innerHTML += `<div class="flex gap-2 items-center p-2 bg-surface-container-low rounded-lg">
+      <span class="text-xs font-bold text-primary w-20">Person ${i+1}</span>
+      <input type="number" class="input-field w-24 person-height" value="1.72" step="0.01" placeholder="Height"/>
+      <input type="number" class="input-field w-24 person-mass" value="70.0" step="0.1" placeholder="Mass"/>
+    </div>`;
+  }
+}
+
+async function addMultiVideo() {
+  const r = await api('/api/browse/file', {title: 'Select Video', filetypes: [['Video files','*.mp4 *.avi *.mov']]});
+  if (r.path) {
+    const list = document.getElementById('pose-multi-list');
+    const div = document.createElement('div');
+    div.className = 'flex items-center gap-2 p-2 bg-surface-container-low rounded-lg text-xs';
+    div.innerHTML = `<span class="flex-1 truncate">${r.path}</span><button class="text-error" onclick="this.parentElement.remove()">✕</button>`;
+    div.dataset.path = r.path;
+    list.appendChild(div);
+  }
+}
+
+async function confirmPose() {
+  const inputType = document.querySelector('input[name="pose-input-type"]:checked')?.value || 'file';
+  const multiVideos = [...document.querySelectorAll('#pose-multi-list > div')].map(d => d.dataset.path);
+  const vidExt = document.getElementById('pose-vid-ext').value;
+  const personsMode = document.querySelector('input[name="pose-persons"]:checked')?.value || 'single';
+  
+  // --- Validation (same as original) ---
+  if (!vidExt) { alert('Error: Please specify a video extension.'); return; }
+  
+  if (personsMode === 'multiple') {
+    const peopleInputs = document.querySelectorAll('.person-height');
+    if (peopleInputs.length === 0) { alert('Error: Please enter and submit participant details for multiple persons.'); return; }
+  } else {
+    const h = parseFloat(document.getElementById('pose-height').value);
+    const m = parseFloat(document.getElementById('pose-mass').value);
+    if (!h || h <= 0 || !m || m <= 0) { alert('Error: Height and mass must be positive numbers.'); return; }
+  }
+  
+  // --- 2D mode (simplified) ---
+  if (analysisMode === '2d') {
+    if (inputType === 'webcam') {
+      alert('Webcam Setup: Webcam will be used when Sports2D is launched.\nNo additional setup needed.');
+    } else if (inputType === 'multiple') {
+      if (multiVideos.length === 0) { alert('Error: Please add at least one video for multiple videos mode.'); return; }
+    } else { // single file
+      const videoPath = document.getElementById('pose-video-path').value;
+      if (!videoPath) { alert('Error: Please select a video file.'); return; }
+    }
+  } else {
+    // --- 3D mode: input videos for each camera (EXACT original flow) ---
+    const numCams = parseInt(document.getElementById('cal-num-cameras')?.value || '2');
+    let trialNum = null;
+    
+    // For batch mode, ask which trial
+    if (appState.processMode === 'batch') {
+      const tn = prompt(`Enter trial number (1-${parseInt(document.getElementById('num-trials')?.value || '3')}):`, '1');
+      if (!tn) return;
+      trialNum = parseInt(tn);
+      if (isNaN(trialNum) || trialNum < 1) { alert('Error: Invalid trial number.'); return; }
+    }
+    
+    // Import videos via API (handles existing check, per-camera dialogs, copy & rename)
+    const r = await api('/api/pose/import_3d_videos', { num_cameras: numCams, trial_num: trialNum });
+    
+    if (r.imported) {
+      // Check if any camera was skipped
+      for (let i = 0; i < r.imported.length; i++) {
+        if (!r.imported[i]) {
+          alert(`Error: No file selected for camera ${i+1}. Import incomplete.`);
+          return;
+        }
+      }
+      alert('Videos Imported: All videos have been imported successfully.');
+    }
+  }
+  
+  // --- Save settings to backend ---
+  await api('/api/tab/pose_model/settings', {
+    multiple_persons: personsMode,
+    participant_height: document.getElementById('pose-height').value,
+    participant_mass: document.getElementById('pose-mass').value,
+    pose_model: document.getElementById('pose-model-select').value,
+    mode: document.getElementById('pose-mode-select').value,
+    tracking_mode: document.getElementById('pose-tracking').value,
+    video_extension: vidExt,
+    video_input: document.getElementById('pose-video-path')?.value || '',
+    video_input_type: inputType,
+    visible_side: document.getElementById('pose-visible-side')?.value || 'auto',
+    multiple_videos_list: multiVideos
+  });
+  
+  // --- Update progress & show success ---
+  markTabComplete('pose_model');
+  const trackingMode = document.getElementById('pose-tracking').value;
+  alert(`Pose Model Settings: Pose model settings have been saved. Tracking mode: ${trackingMode}`);
+  goToNextTab();
+}
+
+// ── Synchronization ───────────────────────────────────
+function syncSkipChange(val) {
+  document.getElementById('sync-options').style.display = val==='no' ? 'block' : 'none';
+}
+
+function syncGuiChange(val) {
+  document.getElementById('sync-manual').style.display = val==='no' ? 'block' : 'none';
+}
+
+async function confirmSync() {
+  const skipVal = document.querySelector('input[name="sync-skip"]:checked')?.value || 'no';
+  const guiVal = document.querySelector('input[name="sync-gui"]:checked')?.value || 'yes';
+  
+  await api('/api/tab/synchronization/settings', {
+    sync_videos: skipVal,
+    use_gui: guiVal,
+    keypoints: document.getElementById('sync-keypoints')?.value || 'all',
+    time_range: document.getElementById('sync-time-range')?.value || '2.0',
+    likelihood_threshold: document.getElementById('sync-likelihood')?.value || '0.4',
+    filter_cutoff: document.getElementById('sync-cutoff')?.value || '6',
+    filter_order: document.getElementById('sync-filter-order')?.value || '4'
+  });
+  
+  markTabComplete('synchronization');
+  
+  // Show appropriate message (matching original)
+  if (skipVal === 'yes') {
+    alert('Synchronization Skipped: Synchronization will be skipped. Videos will be treated as already synchronized.');
+  } else if (guiVal === 'yes') {
+    alert('GUI Synchronization Enabled: Interactive GUI synchronization will be used during processing. This is the recommended approach.');
+  } else {
+    alert('Settings Saved: Manual synchronization settings have been saved successfully. GUI mode is disabled.');
+  }
+  
+  goToNextTab();
+}
+
+// ── Advanced ──────────────────────────────────────────
+function confirmAdvanced() {
+  const filterIk = document.getElementById('adv-filter-ik').value === 'true';
+  const useAug = document.getElementById('adv-use-augmentation').value === 'true';
+  const useSimple = document.getElementById('adv-use-simple-model').value === 'true';
+  const rlSym = document.getElementById('adv-right-left-sym').value === 'true';
+  const feetFloor = document.getElementById('adv-feet-on-floor').value === 'true';
+  
+  api('/api/tab/advanced/settings', {
+    project: {
+      frame_rate: document.getElementById('adv-framerate').value === 'auto' ? 'auto' : parseInt(document.getElementById('adv-framerate').value),
+      frame_range: document.getElementById('adv-framerange').value === 'auto' ? 'auto' : document.getElementById('adv-framerange').value
+    },
+    pose: {
+      parallel_workers_pose: document.getElementById('adv-parallel-pose').value === 'auto' ? 'auto' : parseInt(document.getElementById('adv-parallel-pose').value),
+      average_likelihood_threshold_pose: parseFloat(document.getElementById('adv-avg-likelihood').value),
+      det_frequency: parseInt(document.getElementById('adv-det-freq').value),
+      device: document.getElementById('adv-device').value
+    },
+    triangulation: {
+      reproj_error_threshold_triangulation: parseInt(document.getElementById('adv-reproj-err').value),
+      min_cameras_for_triangulation: parseInt(document.getElementById('adv-min-cams').value),
+      interpolation: document.getElementById('adv-interpolation').value,
+      interp_if_gap_smaller_than: parseInt(document.getElementById('adv-interp-gap').value)
+    },
+    filtering: {
+      type: document.getElementById('adv-filter-type').value,
+      filter_ik: filterIk,
+      butterworth: { cut_off_frequency: parseInt(document.getElementById('adv-filter-cutoff').value) }
+    },
+    markerAugmentation: {
+      feet_on_floor: feetFloor
+    },
+    kinematics: {
+      use_augmentation: useAug,
+      use_simple_model: useSimple,
+      right_left_symmetry: rlSym,
+      parallel_workers_kinematics: document.getElementById('adv-parallel-kin').value === 'auto' ? 'auto' : parseInt(document.getElementById('adv-parallel-kin').value),
+      default_height: parseFloat(document.getElementById('adv-default-height').value),
+      fastest_frames_to_remove_percent: parseFloat(document.getElementById('adv-fastest-remove').value),
+      slowest_frames_to_remove_percent: parseFloat(document.getElementById('adv-slowest-remove').value),
+      large_hip_knee_angles: parseInt(document.getElementById('adv-hip-knee-angles').value)
+    }
+  });
+  markTabComplete('advanced');
+  alert('Advanced settings saved successfully.');
+  goToNextTab();
+}
+
+// ── Run Analysis ──────────────────────────────────────
+async function runAnalysis() {
+  // Check pose model warning (from original activation_tab.py)
+  if (analysisMode === '3d') {
+    const poseModel = document.getElementById('pose-model-select')?.value || 'Body_with_feet';
+    if (poseModel !== 'Body_with_feet') {
+      if (!confirm(`Warning: The selected pose model '${poseModel}' may not be fully integrated in Pose2Sim. This might require manual pose estimation.\n\nDo you want to continue?`)) {
+        return;
+      }
+    }
+  }
+  
+  const r = await api('/api/activate', {});
+  if (r.status === 'ok') {
+    markTabComplete('activation');
+    document.getElementById('console-box').style.display = 'block';
+    
+    // Poll console output
+    const poll = setInterval(async () => {
+      const c = await api('/api/console');
+      document.getElementById('console-output').textContent = c.output.join('\n');
+      document.getElementById('console-output').scrollTop = 999999;
+    }, 1000);
+    setTimeout(() => clearInterval(poll), 300000);
+    
+    const appName = analysisMode === '2d' ? 'Sports2D' : 'Pose2Sim';
+    alert(`Activation Started: ${appName} has been launched with Anaconda Prompt.`);
+  } else {
+    alert('Error: Failed to generate configuration file. Please check your settings.\n\n' + (r.message || ''));
+  }
+}
+
+// ── Scene Calibration ──────────────────────────────────
+let sceneImg = null;
+let scenePoints2D = [];
+let sceneCoords3D = [];
+let sceneScale = 1;
+
+async function loadSceneImage() {
+  const r = await api('/api/calibration/load_scene_image', {});
+  if (!r.url) { alert('No file selected'); return; }
+  
+  const wrap = document.getElementById('cal-scene-canvas-wrap');
+  wrap.style.display = 'block';
+  
+  const canvas = document.getElementById('cal-scene-canvas');
+  const ctx = canvas.getContext('2d');
+  const img = new Image();
+  img.onload = () => {
+    sceneImg = img;
+    const maxW = canvas.parentElement.offsetWidth - 10;
+    sceneScale = Math.min(maxW / img.width, 1);
+    canvas.width = img.width * sceneScale;
+    canvas.height = img.height * sceneScale;
+    drawScene();
+  };
+  img.src = r.url;
+  scenePoints2D = [];
+  sceneCoords3D = [];
+  updateSceneUI();
+}
+
+function drawScene() {
+  if (!sceneImg) return;
+  const canvas = document.getElementById('cal-scene-canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(sceneImg, 0, 0, canvas.width, canvas.height);
+  
+  scenePoints2D.forEach((pt, i) => {
+    const x = pt[0] * sceneScale, y = pt[1] * sceneScale;
+    ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI*2);
+    ctx.fillStyle = sceneCoords3D[i] ? '#006c48' : '#ba1a1a';
+    ctx.fill();
+    ctx.strokeStyle = 'white'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = 'white'; ctx.font = 'bold 12px Inter';
+    ctx.fillText(String(i+1), x+10, y+5);
+  });
+}
+
+function onSceneCanvasClick(e) {
+  if (scenePoints2D.length >= 8) return;
+  const canvas = document.getElementById('cal-scene-canvas');
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) / sceneScale;
+  const y = (e.clientY - rect.top) / sceneScale;
+  scenePoints2D.push([x, y]);
+  sceneCoords3D.push(null);
+  drawScene();
+  updateSceneUI();
+  
+  if (scenePoints2D.length <= 8) {
+    promptCoordinate(scenePoints2D.length - 1);
+  }
+}
+
+function clearScenePoints() {
+  scenePoints2D = [];
+  sceneCoords3D = [];
+  drawScene();
+  updateSceneUI();
+}
+
+function removeLastScenePoint() {
+  if (scenePoints2D.length > 0) {
+    scenePoints2D.pop();
+    sceneCoords3D.pop();
+    drawScene();
+    updateSceneUI();
+  }
+}
+
+function promptCoordinate(idx) {
+  const defaults = [[0,0,0],[0.5,0,0],[1,0,0],[0,0.5,0],[0.5,0.5,0],[1,0.5,0],[0,0,0.5],[0,0.5,0.5]];
+  const def = defaults[idx] || [0,0,0];
+  const isFirst = idx === 0;
+  
+  const x = isFirst ? '0' : prompt(`Point ${idx+1} — X coordinate (meters):`, String(def[0]));
+  if (x === null && !isFirst) { scenePoints2D.pop(); sceneCoords3D.pop(); drawScene(); updateSceneUI(); return; }
+  const y = isFirst ? '0' : prompt(`Point ${idx+1} — Y coordinate (meters):`, String(def[1]));
+  if (y === null && !isFirst) { scenePoints2D.pop(); sceneCoords3D.pop(); drawScene(); updateSceneUI(); return; }
+  const z = isFirst ? '0' : prompt(`Point ${idx+1} — Z coordinate (meters):`, String(def[2]));
+  if (z === null && !isFirst) { scenePoints2D.pop(); sceneCoords3D.pop(); drawScene(); updateSceneUI(); return; }
+  
+  sceneCoords3D[idx] = [parseFloat(x), parseFloat(y), parseFloat(z)];
+  drawScene();
+  updateSceneUI();
+}
+
+function updateSceneUI() {
+  document.getElementById('cal-points-count').textContent = scenePoints2D.length;
+  const list = document.getElementById('cal-coords-list');
+  list.innerHTML = '';
+  sceneCoords3D.forEach((c, i) => {
+    if (!c) return;
+    const div = document.createElement('div');
+    div.className = 'flex items-center gap-2 p-2 bg-surface-container-low rounded-lg text-xs';
+    div.innerHTML = `<span class="font-bold text-primary w-16">Point ${i+1}</span><span>X=${c[0]}m Y=${c[1]}m Z=${c[2]}m</span>
+      <button class="ml-auto text-primary font-bold" onclick="editCoord(${i})">Edit</button>`;
+    list.appendChild(div);
+  });
+  document.getElementById('cal-save-coords-btn').style.display = sceneCoords3D.filter(Boolean).length >= 8 ? 'block' : 'none';
+}
+
+function editCoord(idx) {
+  const c = sceneCoords3D[idx] || [0,0,0];
+  const x = prompt(`Point ${idx+1} — X (m):`, String(c[0]));
+  if (x === null) return;
+  const y = prompt(`Point ${idx+1} — Y (m):`, String(c[1]));
+  if (y === null) return;
+  const z = prompt(`Point ${idx+1} — Z (m):`, String(c[2]));
+  if (z === null) return;
+  sceneCoords3D[idx] = [parseFloat(x), parseFloat(y), parseFloat(z)];
+  drawScene();
+  updateSceneUI();
+}
+
+async function saveSceneCoords() {
+  const valid = sceneCoords3D.filter(Boolean);
+  if (valid.length < 8) { alert('Please enter coordinates for all 8 points'); return; }
+  await api('/api/calibration/save_scene_coords', { coords_3d: valid, points_2d: scenePoints2D });
+  alert('3D coordinates saved. You will need to click on these same points in order when running Pose2Sim after activation.');
+}
+
+// ── Dependency Check ──────────────────────────────────
+async function checkDependencies() {
+  try {
+    const deps = await api('/api/check_dependencies');
+    for (const [key, installed] of Object.entries(deps)) {
+      const el = document.getElementById('dep-' + key);
+      if (el) {
+        const icon = el.querySelector('.dep-icon');
+        icon.textContent = installed ? '✅' : '❌';
+      }
+    }
+  } catch(e) {
+    console.log('Dependency check failed:', e);
+  }
+}
+
+// ── Visualization ─────────────────────────────────────
+let vizData = null;  // MOT data
+let vizTrcData = null;  // TRC data
+let vizCurrentFrame = 0;
+let vizMotData = null;
+
+async function loadTRCFile() {
+  const r = await api('/api/visualization/load_trc', {});
+  if (r.path && r.data) {
+    vizTrcData = r;
+    document.getElementById('viz-status').textContent = 'TRC loaded: ' + r.path + ' — ' + r.data.length + ' frames, ' + (r.markers||[]).length + ' markers';
+    document.getElementById('viz-status').style.color = '#006c48';
+    draw3DMarkers(0);
+    document.getElementById('viz-video-controls').style.display = 'flex';
+  }
+}
+
+async function loadMOTFile() {
+  const r = await api('/api/visualization/load_mot', {});
+  if (r.path && r.data) {
+    vizMotData = r;
+    document.getElementById('viz-status').textContent = 'MOT loaded: ' + r.path + ' — ' + r.data.length + ' frames, ' + r.headers.length + ' columns';
+    document.getElementById('viz-status').style.color = '#006c48';
+    populateVizColumns(r.headers);
+    // Auto-select first few angle columns
+    const sel = document.getElementById('viz-columns');
+    for (let i = 0; i < Math.min(3, sel.options.length); i++) sel.options[i].selected = true;
+    plotVizData();
+  } else {
+    document.getElementById('viz-status').textContent = 'No MOT file selected or file empty.';
+    document.getElementById('viz-status').style.color = '#ba1a1a';
+  }
+}
+
+// ── TRC marker names from header line ──────────────────
+function parseTRCMarkers(headers) {
+  // TRC line 3: Frame# \t Time \t Hip \t \t \t RHip \t \t \t ...
+  // Every marker name is followed by 2 empty strings (for Y, Z sub-columns)
+  const markers = [];
+  for (let i = 2; i < headers.length; i++) {
+    if (headers[i] && headers[i].trim()) {
+      markers.push({ name: headers[i].trim(), col: i });
+    }
+  }
+  return markers;
+}
+
+// ── Skeleton connections for HALPE_26 body ─────────────
+const SKELETON_LINES = [
+  // Torso
+  ['Hip','Neck'], ['Hip','RHip'], ['Hip','LHip'],
+  // Right leg
+  ['RHip','RKnee'], ['RKnee','RAnkle'], ['RAnkle','RBigToe'], ['RAnkle','RHeel'], ['RBigToe','RSmallToe'],
+  // Left leg
+  ['LHip','LKnee'], ['LKnee','LAnkle'], ['LAnkle','LBigToe'], ['LAnkle','LHeel'], ['LBigToe','LSmallToe'],
+  // Upper body
+  ['Neck','Head'], ['Head','Nose'],
+  ['Neck','RShoulder'], ['RShoulder','RElbow'], ['RElbow','RWrist'],
+  ['Neck','LShoulder'], ['LShoulder','LElbow'], ['LElbow','LWrist'],
+];
+
+function draw3DMarkers(frameIdx) {
+  if (!vizTrcData || !vizTrcData.data || vizTrcData.data.length === 0) return;
+  
+  const area = document.getElementById('viz-3d-area');
+  const w = area.offsetWidth || 500, h = 400;
+  const row = vizTrcData.data[Math.min(frameIdx, vizTrcData.data.length - 1)];
+  const headers = vizTrcData.headers || [];
+  
+  // Parse marker names from headers
+  const markerDefs = parseTRCMarkers(headers);
+  
+  // Extract marker positions (each marker = 3 consecutive columns after its header position)
+  // In TRC, cols 0=frame, 1=time, then X,Y,Z,X,Y,Z... for each marker
+  const markerMap = {};
+  const allPts = [];
+  
+  for (let mi = 0; mi < markerDefs.length; mi++) {
+    const dataIdx = 2 + mi * 3; // skip Frame# and Time, then triplets
+    if (dataIdx + 2 < row.length) {
+      const x = row[dataIdx] || 0;
+      const y = row[dataIdx + 1] || 0;
+      const z = row[dataIdx + 2] || 0;
+      markerMap[markerDefs[mi].name] = { x, y, z };
+      allPts.push({ x, y, z, name: markerDefs[mi].name });
+    }
+  }
+  
+  if (allPts.length === 0) return;
+  
+  // Compute bounds
+  const xs = allPts.map(p => p.x), ys = allPts.map(p => p.y), zs = allPts.map(p => p.z);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  const minZ = Math.min(...zs), maxZ = Math.max(...zs);
+  const rangeX = maxX - minX || 1, rangeY = maxY - minY || 1;
+  
+  const pad = 50;
+  const scaleX = (w - pad * 2) / rangeX;
+  const scaleY = (h - pad * 2) / rangeY;
+  const scale = Math.min(scaleX, scaleY);
+  const cx = w / 2, cy = h / 2;
+  
+  function project(pt) {
+    // Front view: X horizontal, Y vertical (Y is height in Pose2Sim TRC)
+    const px = cx + (pt.x - (minX + maxX) / 2) * scale;
+    const py = cy - (pt.y - (minY + maxY) / 2) * scale; // Y up => flip
+    return { px, py };
+  }
+  
+  const time = row[1] ? row[1].toFixed(3) : '0.000';
+  
+  let svg = `<svg viewBox="0 0 ${w} ${h}" class="w-full" style="background:#1a1a2e;border-radius:0.75rem">`;
+  
+  // Title
+  svg += `<text x="15" y="22" fill="#8899aa" font-size="11" font-family="Inter">Frame ${frameIdx}/${vizTrcData.data.length-1} | t=${time}s | ${allPts.length} markers</text>`;
+  
+  // Draw skeleton lines first (behind dots)
+  SKELETON_LINES.forEach(([a, b]) => {
+    const ma = markerMap[a], mb = markerMap[b];
+    if (ma && mb) {
+      const pa = project(ma), pb = project(mb);
+      svg += `<line x1="${pa.px.toFixed(1)}" y1="${pa.py.toFixed(1)}" x2="${pb.px.toFixed(1)}" y2="${pb.py.toFixed(1)}" stroke="#4488cc" stroke-width="2.5" opacity="0.7"/>`;
+    }
+  });
+  
+  // Draw markers as colored dots
+  const bodyColors = {
+    Hip:'#ffcc00', Neck:'#ffcc00', Head:'#ff6600', Nose:'#ff6600',
+    RShoulder:'#00aaff', RElbow:'#00aaff', RWrist:'#00aaff',
+    LShoulder:'#00ff88', LElbow:'#00ff88', LWrist:'#00ff88',
+    RHip:'#ff4444', RKnee:'#ff4444', RAnkle:'#ff4444', RBigToe:'#ff4444', RSmallToe:'#ff4444', RHeel:'#ff4444',
+    LHip:'#44ff44', LKnee:'#44ff44', LAnkle:'#44ff44', LBigToe:'#44ff44', LSmallToe:'#44ff44', LHeel:'#44ff44',
+  };
+  
+  allPts.forEach(pt => {
+    const p = project(pt);
+    const col = bodyColors[pt.name] || '#ffffff';
+    svg += `<circle cx="${p.px.toFixed(1)}" cy="${p.py.toFixed(1)}" r="5" fill="${col}" stroke="white" stroke-width="1"/>`;
+  });
+  
+  // Labels for key joints only
+  ['Head','RWrist','LWrist','RAnkle','LAnkle','Hip'].forEach(name => {
+    const m = markerMap[name];
+    if (m) {
+      const p = project(m);
+      svg += `<text x="${(p.px + 8).toFixed(1)}" y="${(p.py + 3).toFixed(1)}" fill="#aabbcc" font-size="9" font-family="Inter">${name}</text>`;
+    }
+  });
+  
+  svg += '</svg>';
+  area.innerHTML = svg;
+  
+  // Update slider
+  const slider = document.getElementById('viz-timeline');
+  slider.max = vizTrcData.data.length - 1;
+  slider.value = frameIdx;
+  document.getElementById('viz-frame-num').textContent = `${frameIdx}/${vizTrcData.data.length - 1}`;
+  
+  // Draw MOT time line if MOT data loaded
+  if (vizMotData && vizMotData.data) {
+    drawMotTimeLine(frameIdx);
+  }
+}
+
+function seekVizFrame(val) {
+  vizCurrentFrame = parseInt(val);
+  draw3DMarkers(vizCurrentFrame);
+}
+
+let vizPlaying = false;
+let vizPlayInterval = null;
+function toggleVizPlay() {
+  if (vizPlaying) {
+    clearInterval(vizPlayInterval);
+    vizPlaying = false;
+  } else {
+    vizPlaying = true;
+    vizPlayInterval = setInterval(() => {
+      vizCurrentFrame++;
+      if (vizTrcData && vizCurrentFrame >= vizTrcData.data.length) vizCurrentFrame = 0;
+      draw3DMarkers(vizCurrentFrame);
+    }, 33); // ~30fps
+  }
+}
+
+// ── MOT Chart ─────────────────────────────────────────
+function drawMotTimeLine(frameIdx) {
+  // Redraw chart with vertical time line at current frame
+  plotVizData(frameIdx);
+}
+
+async function loadVizVideo() {
+  const r = await api('/api/browse/file', { title: 'Select Video', filetypes: [['Video files','*.mp4 *.avi *.mov']] });
+  if (r.path) {
+    document.getElementById('viz-status').textContent = 'Video loaded: ' + r.path;
+    const encodedPath = encodeURIComponent(r.path);
+    document.getElementById('viz-3d-area').innerHTML = `
+      <video controls class="w-full rounded-lg" autoplay>
+        <source src="/video/${encodedPath}" type="video/mp4">
+        Your browser does not support the video tag.
+      </video>`;
+    document.getElementById('viz-video-controls').style.display = 'none';
+  }
+}
+
+async function autoDetectFiles() {
+  document.getElementById('viz-status').textContent = 'Searching for files in project folder...';
+  const r = await api('/api/visualization/auto_detect');
+  
+  let msg = [];
+  if (r.trc && r.trc.length) msg.push(r.trc.length + ' TRC file(s)');
+  if (r.mot && r.mot.length) msg.push(r.mot.length + ' MOT file(s)');
+  if (r.video && r.video.length) msg.push(r.video.length + ' video(s)');
+  
+  if (msg.length === 0) {
+    document.getElementById('viz-status').textContent = 'No files found in project folder. Run analysis first or load files manually.';
+    return;
+  }
+  document.getElementById('viz-status').textContent = 'Found: ' + msg.join(', ');
+  
+  // Load first TRC if available (for 3D markers)
+  if (r.trc && r.trc.length) {
+    try {
+      const resp = await fetch('/api/visualization/load_trc_path', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({path: r.trc[0]})});
+      const data = await resp.json();
+      if (data.headers && data.data) {
+        vizTrcData = data;
+        vizData = data;
+        draw3DMarkers(0);
+        populateVizColumns(data.headers);
+      }
+    } catch(e) { console.log('TRC load error:', e); }
+  }
+  
+  // Load first MOT if available (for angle data)
+  if (r.mot && r.mot.length) {
+    try {
+      const resp = await fetch('/api/visualization/load_mot_path', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({path: r.mot[0]})});
+      const data = await resp.json();
+      if (data.headers && data.data) {
+        vizMotData = data;
+        populateVizColumns(data.headers);
+        const sel = document.getElementById('viz-columns');
+        for (let i = 0; i < Math.min(3, sel.options.length); i++) sel.options[i].selected = true;
+        plotVizData();
+      }
+    } catch(e) { console.log('MOT load error:', e); }
+  }
+  
+  // Show first video if available
+  if (r.video && r.video.length) {
+    const encodedPath = encodeURIComponent(r.video[0]);
+    document.getElementById('viz-3d-area').innerHTML = `
+      <video controls class="w-full rounded-lg" style="max-height:400px">
+        <source src="/video/${encodedPath}" type="video/mp4">
+      </video>
+      ${r.video.length > 1 ? '<div class="mt-2 text-xs text-on-surface-variant text-center">' + r.video.length + ' videos found. Showing first.</div>' : ''}`;
+  }
+}
+
+function populateVizColumns(headers) {
+  const sel = document.getElementById('viz-columns');
+  sel.innerHTML = '';
+  headers.forEach((h, i) => {
+    if (i === 0) return; // skip time/frame column
+    if (!h || !h.trim()) return; // skip empty headers
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = h.replace(/_/g, ' ');
+    sel.appendChild(opt);
+  });
+  document.getElementById('viz-column-selector').style.display = 'block';
+}
+
+function plotVizData(currentFrameIdx) {
+  const data = vizMotData || vizData;
+  if (!data || !data.data || !data.headers) return;
+  
+  const sel = document.getElementById('viz-columns');
+  const selected = Array.from(sel.selectedOptions).map(o => parseInt(o.value));
+  if (selected.length === 0) return;
+  
+  const rows = data.data;
+  const headers = data.headers;
+  const area = document.getElementById('viz-chart-area');
+  const w = area.offsetWidth || 500, h = 300;
+  const pad = {top:25, right:20, bottom:40, left:65};
+  const pw = w - pad.left - pad.right;
+  const ph = h - pad.top - pad.bottom;
+  
+  // Find min/max across selected columns
+  let allVals = [];
+  selected.forEach(ci => rows.forEach(row => { if(row[ci] !== undefined && !isNaN(row[ci])) allVals.push(row[ci]); }));
+  if (allVals.length === 0) return;
+  
+  const minV = Math.min(...allVals), maxV = Math.max(...allVals);
+  const range = maxV - minV || 1;
+  const n = rows.length;
+  
+  const colors = ['#0059bb','#006c48','#ba1a1a','#e65100','#7b1fa2','#00838f','#558b2f','#d81b60'];
+  
+  let svg = `<svg viewBox="0 0 ${w} ${h}" class="w-full" style="background:#f7f9fb;border-radius:0.75rem">`;
+  
+  // Grid lines + Y axis labels
+  for (let i = 0; i <= 5; i++) {
+    const y = pad.top + (ph * i / 5);
+    const val = (maxV - (range * i / 5)).toFixed(1);
+    svg += `<line x1="${pad.left}" y1="${y}" x2="${w-pad.right}" y2="${y}" stroke="#e8eaed" stroke-width="1"/>`;
+    svg += `<text x="${pad.left-8}" y="${y+4}" text-anchor="end" fill="#717786" font-size="9" font-family="Inter">${val}°</text>`;
+  }
+  
+  // X axis time labels
+  const timeCol = rows.map(row => row[0] || 0); // column 0 = time
+  for (let i = 0; i <= 5; i++) {
+    const x = pad.left + (pw * i / 5);
+    const tIdx = Math.floor((n-1) * i / 5);
+    const tVal = timeCol[tIdx] !== undefined ? timeCol[tIdx].toFixed(2) + 's' : '';
+    svg += `<text x="${x}" y="${h-8}" text-anchor="middle" fill="#717786" font-size="9" font-family="Inter">${tVal}</text>`;
+  }
+  svg += `<text x="${w/2}" y="${h}" text-anchor="middle" fill="#717786" font-size="9" font-family="Inter">Time</text>`;
+  
+  // Data lines
+  selected.forEach((colIdx, ci) => {
+    const col = colors[ci % colors.length];
+    let path = '';
+    rows.forEach((row, i) => {
+      const v = row[colIdx];
+      if (v === undefined || isNaN(v)) return;
+      const x = pad.left + (i / (n - 1)) * pw;
+      const y = pad.top + ph - ((v - minV) / range) * ph;
+      path += (path ? 'L' : 'M') + `${x.toFixed(1)},${y.toFixed(1)}`;
+    });
+    svg += `<path d="${path}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round"/>`;
+  });
+  
+  // Time cursor (vertical line at current frame)
+  if (currentFrameIdx !== undefined && currentFrameIdx >= 0 && currentFrameIdx < n) {
+    const cx = pad.left + (currentFrameIdx / (n - 1)) * pw;
+    svg += `<line x1="${cx}" y1="${pad.top}" x2="${cx}" y2="${pad.top+ph}" stroke="#ba1a1a" stroke-width="1.5" stroke-dasharray="4,2"/>`;
+    svg += `<circle cx="${cx}" cy="${pad.top}" r="4" fill="#ba1a1a"/>`;
+  }
+  
+  // Legend
+  selected.forEach((colIdx, ci) => {
+    const lx = pad.left + ci * 110;
+    const col = colors[ci % colors.length];
+    const name = (headers[colIdx] || '').replace(/_/g,' ');
+    svg += `<rect x="${lx}" y="5" width="10" height="10" rx="2" fill="${col}"/>`;
+    svg += `<text x="${lx+14}" y="14" fill="#191c1e" font-size="8" font-family="Inter">${name.substring(0,18)}</text>`;
+  });
+  
+  svg += '</svg>';
+  area.innerHTML = svg;
+}
+
+
+// ── Batch ─────────────────────────────────────────────
+function buildBatchTrials() {
+  if (appState.processMode !== 'batch') return;
+  const list = document.getElementById('batch-trials-list');
+  list.innerHTML = '';
+  const n = parseInt(document.getElementById('num-trials').value) || 3;
+  for (let i = 1; i <= n; i++) {
+    list.innerHTML += `<div class="p-4 bg-surface-container-low rounded-xl flex items-center justify-between">
+      <div>
+        <h4 class="font-bold text-sm">Trial ${i}</h4>
+        <p class="text-xs text-on-surface-variant">Trial_${i} folder</p>
+      </div>
+      <button class="btn-primary text-xs" onclick="alert('Trial ${i} uses main configuration. Edit Config.toml in Trial_${i}/ folder for overrides.')">Configure</button>
+    </div>`;
+  }
+}
+
+// ── About Releases ────────────────────────────────────
+async function loadAboutReleases() {
+  try {
+    const r = await api('/api/about/releases');
+    const el = document.getElementById('about-releases');
+    if (r.releases && r.releases.length > 0) {
+      el.innerHTML = r.releases.map(rel => `<div class="p-3 bg-surface-container-low rounded-xl">
+        <div class="flex justify-between items-center mb-1">
+          <span class="text-sm font-bold text-primary">${rel.name || rel.tag}</span>
+          <span class="text-xs text-outline">${rel.date}</span>
+        </div>
+        <p class="text-xs text-on-surface-variant">${rel.body.substring(0, 200)}${rel.body.length > 200 ? '...' : ''}</p>
+      </div>`).join('');
+    } else {
+      el.innerHTML = '<p class="text-sm text-on-surface-variant">No releases found. Check your internet connection.</p>';
+    }
+  } catch(e) {
+    document.getElementById('about-releases').innerHTML = '<p class="text-sm text-on-surface-variant">Could not fetch releases.</p>';
+  }
+}
+
+// ── Init ──────────────────────────────────────────────
+let analysisMode = '3d';
+document.addEventListener('DOMContentLoaded', () => {
+  setLanguage('en');
+});
+</script>
+</body>
+</html>
