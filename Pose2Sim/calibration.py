@@ -1237,8 +1237,11 @@ def create_image_labels(img_path, imgpoints, calib_dir, prefix, reprojected_poin
 
     # Draw reprojected points (blue circles) for extrinsics
     if reprojected_points is not None and len(reprojected_points) > 0:
+        h, w = img.shape[:2]
         for point in reprojected_points:
-            cv2.circle(img, (int(point[0]), int(point[1])), 8, (0, 0, 255), -1)
+            # A hidden point can project far outside the image (lens distortion): not drawn.
+            if np.all(np.isfinite(point[:2])) and 0 <= point[0] < w and 0 <= point[1] < h:
+                cv2.circle(img, (int(point[0]), int(point[1])), 8, (0, 0, 255), -1)
 
     # Draw detected/clicked points (green crosses)
     if imgpoints is not None and len(imgpoints) > 0:
