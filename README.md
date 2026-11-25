@@ -853,9 +853,13 @@ If you already have a calibration file, set `calibration_type` type to `convert`
 - Create a folder for each camera in your `Calibration\intrinsics` directory and copy your images or videos in them.
 - Adjust `corners_nb`, `square_size`, and `marker_resolution` in the `[calibration.calculate.intrinsics]` section of [Config.toml](https://github.com/perfanalytics/pose2sim/blob/main/Pose2Sim/Demo_SinglePerson/Config.toml).
 - Run `Pose2Sim.calibration()`. 
-  - For each image, if you are satisfied with the detection, press `Y`.
-  - If you want to dismiss a specific image, press `N`.
-  - If you want to improve the detection by clicking the points, press `C`. Right click to undo a click, and `H` to label a point as hidden. Use the mouse whell to zoom and pan.
+  - If you gave videos, one frame is extracted every `extract_every_N_sec` seconds. They are extracted again if you change this value, or if you set `overwrite_extraction` to true.
+  - The corners are found on every image, then one window per camera shows all the images with their corners and their reprojection error.
+  - Images labeled in a previous run (`Image_points.json`) start from their saved labels instead of a new detection.
+  - Click an image to dismiss it (red), click it again to keep it (green). Press `R` to recalculate the errors with the kept images.
+  - Click an image where no corners were found (grey) to label it by hand (orange) once the window is closed: press `C`, then left click the corners, right click to undo a click, and `H` to label a point as hidden. Use the mouse wheel to zoom and pan.
+  - Press `Enter` or `Y` to validate. With many images, the arrows change page.
+  - Set `intrinsics_review = 'one_by_one'` to review one image after the other instead: `Y` to accept, `N` to dismiss, `C` to click the points.
 
 <img src="Content/Calib_int.png" width="600">
 
@@ -913,7 +917,8 @@ If you already have a calibration file, set `calibration_type` type to `convert`
 - Replace `object_coords_3d` by your coordinates in the `[calibration.calculate.extrinsics.scene]` section. 
 - Once your cameras are in place, make a quick recording of the raw scene with all cameras. Only one frame is needed, but do not just take a photo unless you are sure it does not change the image format. 
 - Copy your videos into the `calibration/extrinsics` folder.
-- Run `Pose2Sim.calibration()`. You will be prompted to click on the corresponding image points for each view.
+- Run `Pose2Sim.calibration()`. You will be prompted to click on the corresponding image points for each view.\
+  The reprojection error of each camera is then shown, in px and in mm. Choose `No` to click the points of this camera again.
 
 <img src="Content/Calib_ext.png" width="920">
 
@@ -1353,8 +1358,10 @@ Camera properties, theoretically need to be calculated only once in a camera lif
 | `square_size` | `60` | Size of one checkerboard square in mm. |
 | `marker_resolution` *(charuco only)* | `5` | Resolution of the aruco marker (e.g. 4 for `'DICT_5X5_50'`, `'DICT_5X5_100'`, ...). |
 | `show_detection_intrinsics` | `true` | Display detected corners during intrinsic calibration. |
+| `intrinsics_review` | `'all_at_once'` | `'all_at_once'`: corners are found on every image, then one window per camera to keep or dismiss images, or to label them by hand. `'one_by_one'`: one window per image (`Y`, `N`, `C`). |
 | `overwrite_intrinsics` | `true` | If `false`, skips intrinsic calculation when results already exist. |
-| `extract_every_N_sec` | `1` | If a video is provided, extract one frame every N seconds (can be < 1). |
+| `extract_every_N_sec` | `1` | If a video is provided, extract one frame every N seconds (can be < 1). Frames are extracted again if this value changes. |
+| `overwrite_extraction` | `false` | Set to `true` to extract the frames of the videos again. |
 
 **[calibration.calculate.extrinsics]**
 
