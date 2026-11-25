@@ -159,7 +159,7 @@ calibration_type = 'convert' # 'convert' or 'calculate'
 
       show_detection_intrinsics = true # true or false (lowercase)
 
-      intrinsics_review = 'all_at_once' # 'all_at_once': corners are found on every image, then one window per camera to keep or dismiss images, or to label them by hand. 'one_by_one': one window per image (Y, N, C)
+      intrinsics_review = 'all_at_once' # 'all_at_once': corners are found on every image, then one window per camera to keep or dismiss images, to correct some corners by hand (right click), or to label them by hand. 'one_by_one': one window per image (Y, N, C)
       overwrite_intrinsics = false # set to false if you don't want to recalculate intrinsic parameters
       extract_every_N_sec = 1 # if video, extract frames every N seconds (can be <1 ). Frames are extracted again if this value changes
       overwrite_extraction = false # true to extract the frames of the videos again

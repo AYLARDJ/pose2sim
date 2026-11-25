@@ -857,6 +857,7 @@ If you already have a calibration file, set `calibration_type` type to `convert`
   - The corners are found on every image, then one window per camera shows all the images with their corners and their reprojection error.
   - Images labeled in a previous run (`Image_points.json`) start from their saved labels instead of a new detection.
   - Click an image to dismiss it (red), click it again to keep it (green). Press `R` to recalculate the errors with the kept images.
+  - Right click an image to correct some of its corners by hand (blue) once the window is closed: drag a corner to its right place, press `H` over a corner to mark it as hidden, `U` or right click to undo, mouse wheel to zoom, middle click to pan, `Enter` to validate. The window then opens again with the new errors.
   - Click an image where no corners were found (grey) to label it by hand (orange) once the window is closed: press `C`, then left click the corners, right click to undo a click, and `H` to label a point as hidden. Use the mouse wheel to zoom and pan.
   - Press `Enter` or `Y` to validate. With many images, the arrows change page.
   - Set `intrinsics_review = 'one_by_one'` to review one image after the other instead: `Y` to accept, `N` to dismiss, `C` to click the points.
@@ -1358,7 +1359,7 @@ Camera properties, theoretically need to be calculated only once in a camera lif
 | `square_size` | `60` | Size of one checkerboard square in mm. |
 | `marker_resolution` *(charuco only)* | `5` | Resolution of the aruco marker (e.g. 4 for `'DICT_5X5_50'`, `'DICT_5X5_100'`, ...). |
 | `show_detection_intrinsics` | `true` | Display detected corners during intrinsic calibration. |
-| `intrinsics_review` | `'all_at_once'` | `'all_at_once'`: corners are found on every image, then one window per camera to keep or dismiss images, or to label them by hand. `'one_by_one'`: one window per image (`Y`, `N`, `C`). |
+| `intrinsics_review` | `'all_at_once'` | `'all_at_once'`: corners are found on every image, then one window per camera to keep or dismiss images, to correct some corners by hand, or to label them by hand. `'one_by_one'`: one window per image (`Y`, `N`, `C`). |
 | `overwrite_intrinsics` | `true` | If `false`, skips intrinsic calculation when results already exist. |
 | `extract_every_N_sec` | `1` | If a video is provided, extract one frame every N seconds (can be < 1). Frames are extracted again if this value changes. |
 | `overwrite_extraction` | `false` | Set to `true` to extract the frames of the videos again. |

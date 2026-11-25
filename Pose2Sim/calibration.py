@@ -1916,7 +1916,8 @@ def intrinsics_errors(detections, keep, image_size):
 class IntrinsicsReview:
     '''
     One window per camera, with all the images of the board and the corners found on them.
-    Click an image to keep or dismiss it. Click an image where no corners were found to label it by hand
+    Click an image to keep or dismiss it. Right click it to correct some of its corners by hand
+    once the window is closed. Click an image where no corners were found to label it by hand
     once the window is closed. 'R' recalculates the errors, 'Enter' or 'Y' validates.
     Left and right arrows (or Page up and Page down) change page when there are many images.
     '''
@@ -1932,6 +1933,7 @@ class IntrinsicsReview:
         self.board_type = board_type
         self.keep = [d['imgp'] is not None for d in detections]
         self.to_label = [False] * len(detections)
+        self.to_correct = [False] * len(detections)
         self.page = 0
         self.fig = None
         img = read_first_image(detections[-1]['path'])
@@ -1959,8 +1961,16 @@ class IntrinsicsReview:
     def toggle(self, k):
         if self.detections[k]['imgp'] is not None:
             self.keep[k] = not self.keep[k]
+            self.to_correct[k] = False
         else:
             self.to_label[k] = not self.to_label[k]
+
+    def toggle_correct(self, k):
+        '''Mark an image to correct some of its corners by hand (or unmark it).'''
+        if self.detections[k]['imgp'] is not None:
+            self.to_correct[k] = not self.to_correct[k]
+            if self.to_correct[k]:
+                self.keep[k] = True
 
     def pages(self):
         return max(1, int(np.ceil(len(self.detections) / self.PER_PAGE)))
@@ -1971,8 +1981,8 @@ class IntrinsicsReview:
         error = f'{self.ret:.3f} px' if self.ret is not None else 'no image kept'
         page = f'   Page {self.page+1}/{self.pages()} (arrows to change page).' if self.pages() > 1 else ''
         return (f'{self.cam_name}: corners found on {found}/{len(self.detections)} images, {kept} kept. Intrinsic error: {error}.{page}\n'
-                'Click an image to keep or dismiss it (green: kept, red: dismissed). Click an image without corners (grey) to label it by hand afterwards (orange).\n'
-                '"R": recalculate the errors with the kept images. "Enter" or "Y": validate.')
+                'Click an image to keep or dismiss it (green: kept, red: dismissed). Right click it to correct some corners by hand afterwards (blue).\n'
+                'Click an image without corners (grey) to label it by hand afterwards (orange). "R": recalculate the errors with the kept images. "Enter" or "Y": validate.')
 
     def draw(self):
         self.fig.clf()
@@ -1986,7 +1996,10 @@ class IntrinsicsReview:
             found = self.detections[k]['imgp'] is not None
             ax.imshow(self.thumbs[k], alpha=1.0 if (self.keep[k] or not found) else 0.35)
             ax.set_xticks([]); ax.set_yticks([])
-            if found:
+            if found and self.to_correct[k]:
+                colour = 'tab:blue'
+                error = (f'{self.errors[k]:.2f} px, ' if self.errors[k] is not None else '') + 'to correct by hand'
+            elif found:
                 colour = 'tab:green' if self.keep[k] else 'tab:red'
                 error = f'{self.errors[k]:.2f} px' if self.errors[k] is not None else 'dismissed'
             else:
@@ -2002,6 +2015,9 @@ class IntrinsicsReview:
     def on_click(self, event):
         if event.inaxes in getattr(self, 'axes', {}) and event.button == 1:
             self.toggle(self.axes[event.inaxes])
+            self.draw()
+        elif event.inaxes in getattr(self, 'axes', {}) and event.button == 3:
+            self.toggle_correct(self.axes[event.inaxes])
             self.draw()
 
     def on_key(self, event):
@@ -2034,11 +2050,176 @@ class IntrinsicsReview:
         plt.show(block=True)
 
 
+class CornerEditor:
+    '''
+    One image with the corners found on it, to correct some of them by hand.
+    Drag a corner to its right place (left click on it, move, release).
+    'H' with the mouse over a corner marks it as hidden: it is not used.
+    'U' or right click undoes the last change. Mouse wheel to zoom, middle click and drag to pan.
+    'Enter' or 'Y' validates, 'Escape' or 'N' keeps the corners as they were.
+    '''
+
+    PICK_RADIUS = 12    # px on screen
+
+    def __init__(self, cam_name, img_path, imgp, objp, row_length=None):
+        self.cam_name = cam_name
+        self.row_length = row_length    # corners per row of a chessboard, to draw its rows
+        self.img_path = img_path
+        self.img = read_first_image(img_path)
+        self.points = np.array(imgp, float).reshape(-1, 2).copy()
+        self.objp = np.array(objp, np.float32).reshape(-1, 3)
+        self.hidden = np.zeros(len(self.points), bool)
+        self.history = []       # (index, previous xy, previous hidden)
+        self.dragged = None
+        self.hovered = None
+        self.pan_from = None
+        self.validated = False
+        self.fig = None
+
+    def nearest(self, event):
+        '''Index of the visible corner under the mouse, or None.'''
+        if event.x is None or event.y is None:
+            return None
+        screen = self.ax.transData.transform(self.points)
+        dist = np.hypot(screen[:, 0] - event.x, screen[:, 1] - event.y)
+        dist[self.hidden] = np.inf
+        k = int(np.argmin(dist))
+        return k if dist[k] <= self.PICK_RADIUS else None
+
+    def title(self):
+        used = int((~self.hidden).sum())
+        return (f'{self.cam_name}, {Path(self.img_path).name}: {used}/{len(self.points)} corners used.\n'
+                'Drag a corner to its right place. "H" over a corner: hidden. "U" or right click: undo. '
+                'Mouse wheel: zoom, middle click: pan. "Enter" or "Y": validate, "Escape" or "N": cancel.')
+
+    def draw(self):
+        visible = ~self.hidden
+        line = np.where(visible[:, None], self.points, np.nan)
+        n = self.row_length
+        if n and len(line) % n == 0:       # one line per row of corners
+            line = np.vstack([np.vstack([r, [[np.nan, np.nan]]]) for r in line.reshape(-1, n, 2)])
+        self.line.set_data(*line.T)
+        self.dots.set_offsets(self.points[visible])
+        colours = ['tab:red' if k == 0 else 'lime' for k in np.flatnonzero(visible)]
+        self.dots.set_color(colours)
+        k = self.dragged if self.dragged is not None else self.hovered
+        self.ring.set_offsets(self.points[[k]] if k is not None else np.empty((0, 2)))
+        self.ax.set_title(self.title(), fontsize=9)
+        self.fig.canvas.draw_idle()
+
+    def remember(self, k):
+        self.history.append((k, self.points[k].copy(), bool(self.hidden[k])))
+
+    def on_press(self, event):
+        if event.inaxes is not self.ax or self.fig.canvas.manager.toolbar is not None and getattr(self.fig.canvas.manager.toolbar, 'mode', ''):
+            return
+        if event.button == 1:
+            k = self.nearest(event)
+            if k is not None:
+                self.remember(k)
+                self.dragged = k
+        elif event.button == 2:
+            self.pan_from = (event.xdata, event.ydata)
+        elif event.button == 3:
+            self.undo()
+
+    def on_motion(self, event):
+        if event.inaxes is not self.ax:
+            return
+        if self.dragged is not None and event.xdata is not None:
+            self.points[self.dragged] = (event.xdata, event.ydata)
+        elif self.pan_from is not None and event.xdata is not None:
+            dx, dy = self.pan_from[0] - event.xdata, self.pan_from[1] - event.ydata
+            self.ax.set_xlim(*(np.array(self.ax.get_xlim()) + dx))
+            self.ax.set_ylim(*(np.array(self.ax.get_ylim()) + dy))
+        else:
+            self.hovered = self.nearest(event)
+        self.draw()
+
+    def on_release(self, event):
+        if self.dragged is not None and np.allclose(self.history[-1][1], self.points[self.dragged]):
+            self.history.pop()      # a click without moving changes nothing
+        self.dragged = None
+        self.pan_from = None
+        self.draw()
+
+    def on_scroll(self, event):
+        if event.inaxes is not self.ax or event.xdata is None:
+            return
+        factor = 1 / 1.25 if event.button == 'up' else 1.25
+        for get, put, centre in ((self.ax.get_xlim, self.ax.set_xlim, event.xdata),
+                                 (self.ax.get_ylim, self.ax.set_ylim, event.ydata)):
+            low, high = get()
+            put(centre + (low - centre) * factor, centre + (high - centre) * factor)
+        self.fig.canvas.draw_idle()
+
+    def undo(self):
+        if self.history:
+            k, xy, hidden = self.history.pop()
+            self.points[k] = xy
+            self.hidden[k] = hidden
+            self.draw()
+
+    def on_key(self, event):
+        if event.key in ('enter', 'y'):
+            self.validated = True
+            plt.close(self.fig)
+        elif event.key in ('escape', 'n'):
+            plt.close(self.fig)
+        elif event.key == 'u':
+            self.undo()
+        elif event.key == 'h':
+            k = self.nearest(event)
+            if k is not None:
+                self.remember(k)
+                self.hidden[k] = True
+                self.hovered = None
+                self.draw()
+
+    def result(self):
+        '''(imgp, objp) of the corners used, or None if cancelled or fewer than 6 corners are left.'''
+        if not self.validated:
+            return None
+        used = ~self.hidden
+        if used.sum() < 6:
+            logging.warning(f'{Path(self.img_path).name}: fewer than 6 corners left, the corners found are kept.')
+            return None
+        return (self.points[used].astype(np.float32).reshape(-1, 1, 2), self.objp[used])
+
+    def show(self):
+        self.fig = plt.figure(figsize=(14, 9))
+        self.fig.canvas.manager.set_window_title(f'{self.cam_name}: correct the corners of {Path(self.img_path).name}')
+        self.ax = self.fig.add_subplot(111)
+        self.ax.imshow(self.img)
+        self.ax.set_xticks([]); self.ax.set_yticks([])
+        self.line, = self.ax.plot([], [], '-', color='lime', linewidth=0.6, alpha=0.6)
+        self.dots = self.ax.scatter([], [], s=28, zorder=3)
+        self.ring = self.ax.scatter([], [], s=260, facecolors='none', edgecolors='yellow', linewidths=2, zorder=4)
+        self.fig.subplots_adjust(left=0.01, right=0.99, bottom=0.01, top=0.93)
+        for name, handler in (('button_press_event', self.on_press), ('motion_notify_event', self.on_motion),
+                              ('button_release_event', self.on_release), ('scroll_event', self.on_scroll),
+                              ('key_press_event', self.on_key)):
+            self.fig.canvas.mpl_connect(name, handler)
+        self.draw()
+        try:
+            self.fig.canvas.manager.window.showMaximized()
+        except Exception:
+            pass
+        try:
+            set_always_on_top(self.fig)
+        except Exception:
+            pass
+        plt.show(block=True)
+        return self.result()
+
+
 def review_intrinsics(cam_name, detections, corners_nb, objp, board_type,
                       aruco_square_size=0.06, aruco_marker_size=0.045, aruco_marker_resolution='5'):
     '''
-    Review all the board detections of one camera in one window (see IntrinsicsReview),
-    then label by hand the images marked for it.
+    Review all the board detections of one camera in one window (see IntrinsicsReview).
+    Once it is closed, correct by hand the corners of the images marked for it (see CornerEditor),
+    and label by hand the images marked for it. The window then opens again with the new corners
+    and errors, until it is validated with no image left to correct or to label.
 
     OUTPUTS:
     - kept: list of (img_path, imgp, objp) to calibrate the camera with
@@ -2047,20 +2228,37 @@ def review_intrinsics(cam_name, detections, corners_nb, objp, board_type,
     if not detections:
         return []
     found = sum(d['imgp'] is not None for d in detections)
-    logging.info(f'{cam_name}: corners found on {found}/{len(detections)} images. Review them in the window: images without corners can be labelled by hand.')
+    logging.info(f'{cam_name}: corners found on {found}/{len(detections)} images. Review them in the window: '
+                 'corners can be corrected by hand, and images without corners can be labelled by hand.')
     review = IntrinsicsReview(cam_name, detections, corners_nb, board_type)
-    review.show()
+    while True:
+        review.show()
+        pending = [k for k in range(len(detections)) if review.to_correct[k] or review.to_label[k]]
+        if not pending:
+            break
+        for k in pending:
+            d = detections[k]
+            if review.to_correct[k]:
+                logging.info(f'{Path(d["path"]).name}: correct the corners by hand.')
+                corrected = CornerEditor(cam_name, d['path'], d['imgp'], d['objp'],
+                                         row_length=corners_nb[0] if board_type == 'chess' else None).show()
+                if corrected is not None:
+                    d['imgp'], d['objp'] = corrected
+            else:
+                logging.info(f'{Path(d["path"]).name}: label the corners by hand.')
+                labelled = findCorners(d['path'], corners_nb, objp=objp, show=True, board_type=board_type,
+                                       aruco_square_size=aruco_square_size, aruco_marker_size=aruco_marker_size,
+                                       aruco_marker_resolution=aruco_marker_resolution)
+                if isinstance(labelled, tuple) and len(labelled[0]) > 0:
+                    d['imgp'] = np.array(labelled[0], np.float32).reshape(-1, 1, 2)
+                    d['objp'] = np.array(labelled[1], np.float32).reshape(-1, 3)
+            review.to_correct[k] = review.to_label[k] = False
+            review.keep[k] = d['imgp'] is not None
+            review.thumbs[k] = review.thumbnail(d)
+        review.recalculate()
 
     kept = [(d['path'], d['imgp'], d['objp']) for k, d in enumerate(detections)
             if review.keep[k] and d['imgp'] is not None]
-    for k, d in enumerate(detections):
-        if review.to_label[k]:
-            logging.info(f'{Path(d["path"]).name}: label the corners by hand.')
-            labelled = findCorners(d['path'], corners_nb, objp=objp, show=True, board_type=board_type,
-                                   aruco_square_size=aruco_square_size, aruco_marker_size=aruco_marker_size,
-                                   aruco_marker_resolution=aruco_marker_resolution)
-            if isinstance(labelled, tuple) and len(labelled[0]) > 0:
-                kept.append((d['path'], np.array(labelled[0], np.float32), np.array(labelled[1], np.float32)))
     logging.info(f'{cam_name}: {len(kept)} images kept out of {len(detections)}.')
     return kept
 
